@@ -1,0 +1,46 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Do not report security vulnerabilities here** — see SECURITY.md.
+        Never paste secrets, tokens or `.env` contents.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include the request, the response (problem details) and the `X-Request-Id` if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. docker compose up --build
+        2. curl ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or release
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Docker / Compose version, Node.js version, CPU architecture.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: '`docker compose logs <service>` output (redact anything sensitive).'
+      render: shell

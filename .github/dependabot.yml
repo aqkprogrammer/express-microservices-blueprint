@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      opentelemetry:
+        patterns: ['@opentelemetry/*']
+      prisma:
+        patterns: ['prisma', '@prisma/*']
+      testing:
+        patterns:
+          ['vitest', '@vitest/*', 'supertest', '@types/supertest', 'testcontainers', '@testcontainers/*']
+      lint-and-format:
+        patterns: ['eslint', '@eslint/*', 'typescript-eslint', 'eslint-config-prettier', 'prettier']
+    ignore:
+      # TypeScript majors must wait for typescript-eslint support (peer range).
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /infrastructure/docker
+    schedule:
+      interval: weekly

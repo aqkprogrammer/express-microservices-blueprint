@@ -1,0 +1,137 @@
+# Pull-request and main-branch validation. Third-party actions are pinned to
+# full commit SHAs (the tag is noted in the trailing comment) and kept current
+# by Dependabot. No image is pushed and nothing is deployed from this workflow.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: '1'
+
+jobs:
+  quality:
+    name: Format, lint, typecheck, unit & contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - name: Build (Prisma clients + TypeScript project references)
+        run: npm run build
+      - name: Typecheck tests and scripts
+        run: npx tsc -p tsconfig.json
+      - run: npm run lint
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+      - run: npm run test:contract
+      - name: Validate documentation links and OpenAPI specs
+        run: npm run docs:validate
+      - name: Check generated artefacts are committed
+        run: |
+          npm run topology:generate
+          npm run dashboards:generate
+          npm run diagrams:build
+          git diff --exit-code -- infrastructure/rabbitmq/definitions.json infrastructure/grafana/dashboards docs/assets/animated
+
+  node-compatibility:
+    name: Unit tests on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:unit
+
+  integration:
+    name: Integration tests (Testcontainers)
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: PostgreSQL, RabbitMQ and Redis in disposable containers
+        run: npm run test:integration
+
+  images:
+    name: Build and scan container images
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+      - name: Build all images (not pushed)
+        run: docker compose build
+      - name: Trivy scan (fail on fixable HIGH/CRITICAL)
+        run: |
+          set -euo pipefail
+          for image in $(docker compose config --images | grep '^emb/'); do
+            echo "::group::$image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.67.2 \
+              image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress "$image"
+            echo "::endgroup::"
+          done
+
+  e2e:
+    name: End-to-end and resilience tests (Docker Compose)
+    needs: [integration, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Tests register many users from one IP; keep the strict auth limiter but raise it.
+      AUTH_RATE_LIMIT_MAX: '200'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Start the stack
+        run: docker compose up --build -d --wait --wait-timeout 600
+      - run: npm run test:e2e
+      - run: npm run test:resilience
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=300 > compose-logs.txt
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compose-logs
+          path: compose-logs.txt
+          retention-days: 7
+      - name: Tear down (ephemeral CI runner, volumes included)
+        if: always()
+        run: docker compose down --volumes --remove-orphans

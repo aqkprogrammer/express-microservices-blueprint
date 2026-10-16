@@ -1,0 +1,22 @@
+name: Feature or improvement
+description: Suggest an enhancement to the blueprint
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What are you trying to learn, demonstrate or build?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+      description: The blueprint favours essential complexity only — how does this earn its place?
