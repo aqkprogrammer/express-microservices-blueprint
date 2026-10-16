@@ -1,0 +1,20 @@
+# Development override: publishes infrastructure ports on 127.0.0.1 so services
+# can run from source on the host (`npm run dev -- <service>`).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis rabbitmq mailpit jaeger migrator
+services:
+  postgres:
+    ports:
+      - 127.0.0.1:5432:5432
+  redis:
+    ports:
+      - 127.0.0.1:6379:6379
+  rabbitmq:
+    ports:
+      - 127.0.0.1:5672:5672
+  mailpit:
+    ports:
+      - 127.0.0.1:1025:1025
+  jaeger:
+    ports:
+      - 127.0.0.1:4318:4318

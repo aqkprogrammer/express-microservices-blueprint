@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: services
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - auth-service:3001
+          - user-service:3002
+          - product-service:3003
+          - inventory-service:3004
+          - order-service:3005
+          - payment-service:3006
+          - notification-service:3007
+          - audit-service:3008
+          - worker:3009
+          - api-gateway:9464 # gateway metrics live on a separate internal port
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):\d+'
+        target_label: instance
+        replacement: '$1'
+
+  - job_name: rabbitmq
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

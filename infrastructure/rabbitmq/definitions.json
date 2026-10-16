@@ -1,0 +1,805 @@
+{
+  "exchanges": [
+    {
+      "name": "domain.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "maintenance.commands",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dead-letters",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "auth-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "auth-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "auth-service.events"
+      }
+    },
+    {
+      "name": "auth-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "auth-service.events"
+      }
+    },
+    {
+      "name": "auth-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "auth-service.events"
+      }
+    },
+    {
+      "name": "user-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "user-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "user-service.events"
+      }
+    },
+    {
+      "name": "user-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "user-service.events"
+      }
+    },
+    {
+      "name": "user-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "user-service.events"
+      }
+    },
+    {
+      "name": "product-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "product-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "product-service.events"
+      }
+    },
+    {
+      "name": "product-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "product-service.events"
+      }
+    },
+    {
+      "name": "product-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "product-service.events"
+      }
+    },
+    {
+      "name": "inventory-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "inventory-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "inventory-service.events"
+      }
+    },
+    {
+      "name": "inventory-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "inventory-service.events"
+      }
+    },
+    {
+      "name": "inventory-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "inventory-service.events"
+      }
+    },
+    {
+      "name": "order-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "order-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "order-service.events"
+      }
+    },
+    {
+      "name": "order-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "order-service.events"
+      }
+    },
+    {
+      "name": "order-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "order-service.events"
+      }
+    },
+    {
+      "name": "payment-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "payment-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "payment-service.events"
+      }
+    },
+    {
+      "name": "payment-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "payment-service.events"
+      }
+    },
+    {
+      "name": "payment-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "payment-service.events"
+      }
+    },
+    {
+      "name": "notification-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "notification-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 2000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "notification-service.events"
+      }
+    },
+    {
+      "name": "notification-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 10000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "notification-service.events"
+      }
+    },
+    {
+      "name": "notification-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 30000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "notification-service.events"
+      }
+    },
+    {
+      "name": "audit-service.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 10,
+        "x-dead-letter-exchange": "dead-letters"
+      }
+    },
+    {
+      "name": "audit-service.events.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "audit-service.events"
+      }
+    },
+    {
+      "name": "audit-service.events.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "audit-service.events"
+      }
+    },
+    {
+      "name": "audit-service.events.retry.3",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "audit-service.events"
+      }
+    },
+    {
+      "name": "worker.dead-letters",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": -1
+      }
+    },
+    {
+      "name": "worker.dead-letters.retry.1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "worker.dead-letters"
+      }
+    },
+    {
+      "name": "worker.dead-letters.retry.2",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "worker.dead-letters"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "auth-service.events",
+      "destination_type": "queue",
+      "routing_key": "user.status-changed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "auth-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "user-service.events",
+      "destination_type": "queue",
+      "routing_key": "auth.user-registered.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "user-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "product-service.events",
+      "destination_type": "queue",
+      "routing_key": "inventory.stock-changed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "product-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "inventory-service.events",
+      "destination_type": "queue",
+      "routing_key": "product.created.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "inventory-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.created.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "inventory-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.confirmed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "inventory-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.cancelled.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "inventory-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.inventory.expire-reservations",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "inventory-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "inventory.reserved.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "inventory.reservation-failed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "inventory.reservation-expired.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "inventory.commit-failed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "payment.authorized.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "payment.failed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.order.check-saga-timeouts",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "order-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "payment-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.payment-authorization-requested.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "payment-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.confirmed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "payment-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.cancelled.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "payment-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.payment.reconcile",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "payment-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "auth.user-registered.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "user.profile-updated.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.confirmed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.cancelled.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.requires-review.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "payment.refunded.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "notification.requested.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "notification-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "auth.#",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "user.#",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "product.#",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "payment.#",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.confirmed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.cancelled.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "order.requires-review.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "inventory.commit-failed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "notification.delivery-failed.v1",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.audit.apply-retention",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance.commands",
+      "vhost": "/",
+      "destination": "audit-service.events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.all.cleanup",
+      "arguments": {}
+    },
+    {
+      "source": "dead-letters",
+      "vhost": "/",
+      "destination": "worker.dead-letters",
+      "destination_type": "queue",
+      "routing_key": "#",
+      "arguments": {}
+    }
+  ]
+}
