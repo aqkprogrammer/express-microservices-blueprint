@@ -1,0 +1,74 @@
+// Product service — owns the catalog. Other services never read these tables;
+// they receive ProductCreated/ProductUpdated events or call the internal API.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id                    String    @id @db.Uuid
+  sku                   String    @unique
+  name                  String
+  description           String    @default("")
+  category              String
+  /// Integer minor units (cents)
+  priceCents            Int       @map("price_cents")
+  currency              String    @db.Char(3)
+  /// draft | active | discontinued
+  status                String    @default("draft")
+  /// Read model maintained from InventoryStockChanged events (eventually consistent)
+  availableQuantity     Int       @default(0) @map("available_quantity")
+  availabilityUpdatedAt DateTime? @map("availability_updated_at") @db.Timestamptz(3)
+  /// Optimistic concurrency token for admin updates
+  version               Int       @default(1)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, category])
+  @@index([priceCents])
+  @@index([createdAt])
+  @@map("products")
+}
+
+// ── Messaging infrastructure tables (identical in every service schema) ───────
+// Transactional outbox: written in the same transaction as the business change,
+// published by the in-process OutboxRelay (packages/messaging).
+model OutboxEvent {
+  id            String    @id @db.Uuid
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  envelope      Json
+  headers       Json      @default("{}")
+  /// PENDING | PUBLISHING | PUBLISHED (CHECK constraint in migration)
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([status, availableAt])
+  @@index([publishedAt])
+  @@map("outbox_events")
+}
+
+// Idempotent-consumer markers: (consumer, message id) inserted in the handler's transaction.
+model ProcessedMessage {
+  consumer    String
+  messageId   String   @map("message_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumer, messageId])
+  @@index([processedAt])
+  @@map("processed_messages")
+}

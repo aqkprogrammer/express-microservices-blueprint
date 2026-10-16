@@ -1,0 +1,106 @@
+// Inventory service — owns stock levels and reservations. Consistency model:
+// stock is changed only through conditional UPDATEs inside transactions, and
+// CHECK constraints make overselling impossible even if application code is wrong.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model InventoryItem {
+  productId String   @id @map("product_id") @db.Uuid
+  sku       String
+  onHand    Int      @default(0) @map("on_hand")
+  reserved  Int      @default(0)
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  adjustments StockAdjustment[]
+
+  @@index([sku])
+  @@map("inventory_items")
+}
+
+/// One reservation per order. Status: RESERVED | COMMITTED | RELEASED | EXPIRED | REJECTED | CANCELLED
+/// CANCELLED is a tombstone written when OrderCancelled arrives before OrderCreated.
+model Reservation {
+  id            String    @id @db.Uuid
+  orderId       String    @unique @map("order_id") @db.Uuid
+  status        String
+  expiresAt     DateTime? @map("expires_at") @db.Timestamptz(3)
+  failureReason String?   @map("failure_reason")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  lines ReservationLine[]
+
+  @@index([status, expiresAt])
+  @@map("reservations")
+}
+
+model ReservationLine {
+  reservationId String      @map("reservation_id") @db.Uuid
+  productId     String      @map("product_id") @db.Uuid
+  quantity      Int
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@id([reservationId, productId])
+  @@map("reservation_lines")
+}
+
+/// Append-only audit trail of manual stock adjustments.
+model StockAdjustment {
+  id        String        @id @db.Uuid
+  productId String        @map("product_id") @db.Uuid
+  delta     Int
+  reason    String
+  actorId   String        @map("actor_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  item      InventoryItem @relation(fields: [productId], references: [productId])
+
+  @@index([productId, createdAt])
+  @@map("stock_adjustments")
+}
+
+// ── Messaging infrastructure tables (identical in every service schema) ───────
+// Transactional outbox: written in the same transaction as the business change,
+// published by the in-process OutboxRelay (packages/messaging).
+model OutboxEvent {
+  id            String    @id @db.Uuid
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  envelope      Json
+  headers       Json      @default("{}")
+  /// PENDING | PUBLISHING | PUBLISHED (CHECK constraint in migration)
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([status, availableAt])
+  @@index([publishedAt])
+  @@map("outbox_events")
+}
+
+// Idempotent-consumer markers: (consumer, message id) inserted in the handler's transaction.
+model ProcessedMessage {
+  consumer    String
+  messageId   String   @map("message_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumer, messageId])
+  @@index([processedAt])
+  @@map("processed_messages")
+}

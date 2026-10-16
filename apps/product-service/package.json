@@ -1,0 +1,30 @@
+{
+  "name": "@emb/product-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Product catalog: listing, search, details, pricing, availability read model and Redis caching.",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node --import ./dist/telemetry.js dist/main.js",
+    "dev": "tsx watch --conditions=source --import ./src/telemetry.ts src/main.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "db:seed": "node dist/seed.js"
+  },
+  "dependencies": {
+    "@emb/config": "^0.1.0",
+    "@emb/contracts": "^0.1.0",
+    "@emb/database": "^0.1.0",
+    "@emb/http-kit": "^0.1.0",
+    "@emb/logger": "^0.1.0",
+    "@emb/messaging": "^0.1.0",
+    "@emb/observability": "^0.1.0",
+    "@emb/security": "^0.1.0",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "express": "^5.3.0",
+    "ioredis": "^6.0.0",
+    "zod": "^4.6.7"
+  }
+}
