@@ -1,0 +1,97 @@
+# Local cluster (kind / minikube) overlay — OPTIONAL, for trying the manifests
+# on a laptop. Docker Compose is still the simpler local setup.
+# Usage and prerequisites: docs/deployment/kubernetes.md
+#
+# Differences from the base:
+#   - images are the locally built `emb/<service>:local` tags (kind load / minikube image load),
+#   - one replica each, no HorizontalPodAutoscalers or PodDisruptionBudgets,
+#   - plain HTTP (no TLS), so refresh cookies are not marked Secure,
+#   - OpenTelemetry export disabled (no collector assumed), demo seed data loaded.
+# Secrets are NOT generated here: create them first (see ../../secrets.example.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: emb
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+images:
+  - { name: emb/api-gateway, newTag: local }
+  - { name: emb/auth-service, newTag: local }
+  - { name: emb/user-service, newTag: local }
+  - { name: emb/product-service, newTag: local }
+  - { name: emb/inventory-service, newTag: local }
+  - { name: emb/order-service, newTag: local }
+  - { name: emb/payment-service, newTag: local }
+  - { name: emb/notification-service, newTag: local }
+  - { name: emb/audit-service, newTag: local }
+  - { name: emb/worker, newTag: local }
+  - { name: emb/migrator, newTag: local }
+
+configMapGenerator:
+  - name: emb-common
+    behavior: merge
+    literals:
+      - LOG_LEVEL=debug
+      - OTEL_SDK_DISABLED=true
+  - name: api-gateway-config
+    behavior: merge
+    literals:
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173
+  - name: auth-service-config
+    behavior: merge
+    literals:
+      - COOKIE_SECURE=false
+      - PASSWORD_RESET_URL=http://localhost:8080/reset-password
+  - name: order-service-config
+    behavior: merge
+    literals:
+      - SAGA_PAYMENT_TIMEOUT_MS=15000
+
+patches:
+  # One replica of everything (HPA-managed Deployments have no replicas field in the base).
+  - target: { kind: Deployment }
+    patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 1
+  # A single-replica PDB would block node drains; local clusters rarely run metrics-server.
+  - target: { kind: PodDisruptionBudget }
+    patch: |-
+      $patch: delete
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: ignored
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      $patch: delete
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: ignored
+  # Plain HTTP on a *.localhost name (resolves to 127.0.0.1); no TLS locally.
+  - target: { kind: Ingress, name: api-gateway }
+    patch: |-
+      - op: remove
+        path: /spec/tls
+      - op: replace
+        path: /spec/rules/0/host
+        value: emb.localhost
+  # Load the demo catalogue and stock, like `docker compose up` does.
+  - target: { kind: Job, name: emb-migrate }
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: emb-migrate
+      spec:
+        template:
+          spec:
+            containers:
+              - name: migrate
+                env:
+                  - name: RUN_SEED
+                    value: "true"

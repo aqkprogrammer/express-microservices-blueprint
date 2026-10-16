@@ -1,0 +1,101 @@
+# EXAMPLE production overlay — a starting point, not a turnkey deployment.
+# Every REPLACE_ME / example.com value must be replaced. Read
+# docs/deployment/production.md first; Kubernetes is optional for this project.
+#
+# Assumes: managed (or operator-run) PostgreSQL, RabbitMQ and Redis; secrets
+# synced by External Secrets / Sealed Secrets / CSI driver; cert-manager for
+# TLS; an OpenTelemetry Collector; the Prometheus Operator (ServiceMonitors).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: emb
+
+resources:
+  - namespace.yaml
+  - ../../base
+  # Requires the Prometheus Operator CRDs (monitoring.coreos.com/v1). Remove
+  # this line if you scrape via the prometheus.io/* pod annotations instead.
+  - servicemonitors.yaml
+
+# Pin images by immutable digest (`digest: sha256:...`) or a release tag built by CI.
+images:
+  - { name: emb/api-gateway, newName: registry.example.com/emb/api-gateway, newTag: REPLACE_ME }
+  - { name: emb/auth-service, newName: registry.example.com/emb/auth-service, newTag: REPLACE_ME }
+  - { name: emb/user-service, newName: registry.example.com/emb/user-service, newTag: REPLACE_ME }
+  - { name: emb/product-service, newName: registry.example.com/emb/product-service, newTag: REPLACE_ME }
+  - { name: emb/inventory-service, newName: registry.example.com/emb/inventory-service, newTag: REPLACE_ME }
+  - { name: emb/order-service, newName: registry.example.com/emb/order-service, newTag: REPLACE_ME }
+  - { name: emb/payment-service, newName: registry.example.com/emb/payment-service, newTag: REPLACE_ME }
+  - {
+      name: emb/notification-service,
+      newName: registry.example.com/emb/notification-service,
+      newTag: REPLACE_ME,
+    }
+  - { name: emb/audit-service, newName: registry.example.com/emb/audit-service, newTag: REPLACE_ME }
+  - { name: emb/worker, newName: registry.example.com/emb/worker, newTag: REPLACE_ME }
+  - { name: emb/migrator, newName: registry.example.com/emb/migrator, newTag: REPLACE_ME }
+
+configMapGenerator:
+  - name: emb-common
+    behavior: merge
+    literals:
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector.observability.svc:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://otel-collector.observability.svc:4318/v1/logs
+  - name: api-gateway-config
+    behavior: merge
+    literals:
+      - CORS_ALLOWED_ORIGINS=https://app.example.com
+  - name: auth-service-config
+    behavior: merge
+    literals:
+      - COOKIE_SECURE=true
+      - PASSWORD_RESET_URL=https://app.example.com/reset-password
+  - name: notification-service-config
+    behavior: merge
+    literals:
+      - EMAIL_TRANSPORT=smtp
+      - SMTP_HOST=smtp.example.com
+      - SMTP_PORT=587
+      - EMAIL_FROM=Example Shop <no-reply@example.com>
+
+patches:
+  # TLS via cert-manager: it creates/renews the `emb-api-tls` Secret named in the base Ingress.
+  - target: { kind: Ingress, name: api-gateway }
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          cert-manager.io/cluster-issuer: REPLACE_ME
+      # Must be a valid lowercase name, e.g. the IngressClass of your controller.
+      - op: add
+        path: /spec/ingressClassName
+        value: replace-me
+
+  # Managed data services live outside the cluster, so namespace selectors cannot
+  # match them: allow their private address ranges instead. 192.0.2.0/24
+  # (TEST-NET-1) is a placeholder — use your VPC / private endpoint CIDRs.
+  - target: { kind: NetworkPolicy, name: allow-postgres-egress }
+    patch: |-
+      - op: replace
+        path: /spec/egress/0/to
+        value:
+          - ipBlock: { cidr: 192.0.2.0/24 }
+  - target: { kind: NetworkPolicy, name: allow-rabbitmq-egress }
+    patch: |-
+      - op: replace
+        path: /spec/egress/0/to
+        value:
+          - ipBlock: { cidr: 192.0.2.0/24 }
+  - target: { kind: NetworkPolicy, name: allow-redis-egress }
+    patch: |-
+      - op: replace
+        path: /spec/egress/0/to
+        value:
+          - ipBlock: { cidr: 192.0.2.0/24 }
+
+  # Spread replicas across zones strictly for the latency-critical entry point.
+  - target: { kind: Deployment, name: api-gateway }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/topologySpreadConstraints/0/whenUnsatisfiable
+        value: DoNotSchedule

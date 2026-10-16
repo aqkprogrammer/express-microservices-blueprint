@@ -1,0 +1,91 @@
+# Release step: applies every service's Prisma migrations (each to its own
+# database) and declares the RabbitMQ topology, using the `migrator` image
+# target of infrastructure/docker/node-service.Dockerfile (entrypoint
+# infrastructure/docker/migrate.sh). Run it, and wait for it to complete,
+# BEFORE rolling out new application versions:
+#
+#   kubectl -n emb apply -k <overlay> -l app.kubernetes.io/component=migration
+#   kubectl -n emb wait --for=condition=complete job/emb-migrate --timeout=10m
+#
+# Jobs are immutable. Delete the finished Job before re-running it with a new
+# image (ttlSecondsAfterFinished also removes it after a day).
+# Migrations must stay backward compatible with the version still running
+# (expand/contract), because old pods keep serving during a rolling update.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: emb-migrate
+  labels:
+    app.kubernetes.io/name: emb-migrate
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: emb-migrate
+        app.kubernetes.io/component: migration
+        network.emb/postgres-client: 'true'
+        network.emb/rabbitmq-client: 'true'
+    spec:
+      restartPolicy: Never
+      serviceAccountName: emb-migrator
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: emb/migrator
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOME
+              value: /tmp
+            - name: CHECKPOINT_DISABLE
+              value: '1'
+            # Demo seed data (products, stock). Keep "false" outside local environments.
+            - name: RUN_SEED
+              value: 'false'
+            # Prefer a dedicated migration (DDL) role per database here, distinct from
+            # the runtime role in <service>-db; see docs/deployment/production.md.
+            - name: AUTH_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: AUTH_SERVICE_DATABASE_URL } }
+            - name: USER_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: USER_SERVICE_DATABASE_URL } }
+            - name: PRODUCT_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: PRODUCT_SERVICE_DATABASE_URL } }
+            - name: INVENTORY_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: INVENTORY_SERVICE_DATABASE_URL } }
+            - name: ORDER_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: ORDER_SERVICE_DATABASE_URL } }
+            - name: PAYMENT_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: PAYMENT_SERVICE_DATABASE_URL } }
+            - name: NOTIFICATION_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: NOTIFICATION_SERVICE_DATABASE_URL } }
+            - name: AUDIT_SERVICE_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: AUDIT_SERVICE_DATABASE_URL } }
+            - name: WORKER_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: emb-migration-db, key: WORKER_DATABASE_URL } }
+            # Declares exchanges/queues/bindings (needs RabbitMQ "configure" permission).
+            - name: RABBITMQ_URL
+              valueFrom: { secretKeyRef: { name: emb-rabbitmq, key: RABBITMQ_URL } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: '1', memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 128Mi }
