@@ -1,0 +1,159 @@
+# notification-service — Email notifications (SMTP or console transport).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification-service
+        app.kubernetes.io/component: backend
+        network.emb/postgres-client: 'true'
+        network.emb/rabbitmq-client: 'true'
+        network.emb/jwks-client: 'true'
+        network.emb/smtp-client: 'true'
+      annotations:
+        # For annotation-based Prometheus scraping. With the Prometheus Operator use the
+        # ServiceMonitor in overlays/production-example instead.
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '3007'
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: emb-app
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      # preStop sleep (5s) + in-app graceful shutdown (SHUTDOWN_TIMEOUT_MS, default 15s) < 30s.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: notification-service
+          matchLabelKeys: [pod-template-hash]
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: notification-service
+          matchLabelKeys: [pod-template-hash]
+      containers:
+        - name: notification-service
+          image: emb/notification-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 3007 }
+          envFrom:
+            - configMapRef:
+                name: emb-common
+            - configMapRef:
+                name: notification-service-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-service-db
+                  key: DATABASE_URL
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: emb-rabbitmq
+                  key: RABBITMQ_URL
+            # Optional: SMTP relay credentials (unused with EMAIL_TRANSPORT=console).
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: notification-smtp
+                  key: SMTP_USER
+                  optional: true
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-smtp
+                  key: SMTP_PASSWORD
+                  optional: true
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              # Keep serving while the endpoint removal propagates to kube-proxy and the
+              # ingress controller; SIGTERM (and the app's own drain) follows afterwards.
+              exec:
+                command: ['sleep', '5']
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: notification-service
+  ports:
+    - { name: http, port: 3007, targetPort: http }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/component: backend
+spec:
+  minAvailable: 1
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service

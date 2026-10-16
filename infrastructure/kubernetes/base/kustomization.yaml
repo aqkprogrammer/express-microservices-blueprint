@@ -1,0 +1,58 @@
+# OPTIONAL Kubernetes deployment for the Express Microservices Blueprint.
+# Docker Compose remains the primary way to run this project; see
+# docs/deployment/kubernetes.md before using these manifests.
+#
+# The base is environment-neutral and deliberately incomplete on its own:
+#   - no namespace (overlays set it),
+#   - no Secrets (create them out of band; see ../secrets.example.yaml),
+#   - no PostgreSQL / RabbitMQ / Redis (use managed services or operators).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: express-microservices-blueprint
+    includeSelectors: false
+    includeTemplates: true
+
+resources:
+  - serviceaccount.yaml
+  - services/api-gateway.yaml
+  - services/auth-service.yaml
+  - services/user-service.yaml
+  - services/product-service.yaml
+  - services/inventory-service.yaml
+  - services/order-service.yaml
+  - services/payment-service.yaml
+  - services/notification-service.yaml
+  - services/audit-service.yaml
+  - services/worker.yaml
+  - migration-job.yaml
+  - network-policies.yaml
+  - ingress.yaml
+
+# Generated ConfigMaps get a content hash suffix, so changing a value rolls the
+# Deployments that reference them.
+configMapGenerator:
+  - name: emb-common
+    envs: [config/common.env]
+  - name: api-gateway-config
+    envs: [config/api-gateway.env]
+  - name: auth-service-config
+    envs: [config/auth-service.env]
+  - name: user-service-config
+    envs: [config/user-service.env]
+  - name: product-service-config
+    envs: [config/product-service.env]
+  - name: inventory-service-config
+    envs: [config/inventory-service.env]
+  - name: order-service-config
+    envs: [config/order-service.env]
+  - name: payment-service-config
+    envs: [config/payment-service.env]
+  - name: notification-service-config
+    envs: [config/notification-service.env]
+  - name: audit-service-config
+    envs: [config/audit-service.env]
+  - name: worker-config
+    envs: [config/worker.env]

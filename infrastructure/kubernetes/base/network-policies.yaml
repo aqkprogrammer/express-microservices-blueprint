@@ -1,0 +1,456 @@
+# Zero-trust networking for the namespace: deny everything, then allow only the
+# flows the code actually uses.
+#
+# Namespaces outside this one are matched by LABELS you add yourself, so the
+# policies do not hard-code controller or operator namespaces:
+#   network.emb/ingress-controller=true  namespace of your Ingress/Gateway controller
+#   network.emb/monitoring=true          namespace of Prometheus (metrics scraping)
+#   network.emb/data-services=true       namespace(s) running in-cluster PostgreSQL /
+#                                        RabbitMQ / Redis (operators). For MANAGED
+#                                        services outside the cluster, patch the
+#                                        egress rules to ipBlock CIDRs instead (see
+#                                        overlays/production-example).
+#   network.emb/observability=true       namespace of the OpenTelemetry Collector
+#
+# Requires a CNI that enforces NetworkPolicy (Calico, Cilium, kindnet >= kind
+# v0.24, most managed offerings when enabled). kubelet health probes and
+# `kubectl port-forward` are not subject to these policies on common CNIs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# ── Egress to backing services ────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-egress
+spec:
+  podSelector:
+    matchLabels:
+      network.emb/postgres-client: 'true'
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              network.emb/data-services: 'true'
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-rabbitmq-egress
+spec:
+  podSelector:
+    matchLabels:
+      network.emb/rabbitmq-client: 'true'
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              network.emb/data-services: 'true'
+      ports:
+        - { protocol: TCP, port: 5672 } # AMQP
+        - { protocol: TCP, port: 5671 } # AMQPS
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-egress
+spec:
+  podSelector:
+    matchLabels:
+      network.emb/redis-client: 'true'
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              network.emb/data-services: 'true'
+      ports:
+        - { protocol: TCP, port: 6379 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-otel-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: express-microservices-blueprint
+    matchExpressions:
+      - { key: app.kubernetes.io/component, operator: NotIn, values: [migration] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              network.emb/observability: 'true'
+      ports:
+        - { protocol: TCP, port: 4318 } # OTLP/HTTP
+---
+# notification-service → SMTP relay. Narrow `to` to your relay's CIDR if you can.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-smtp-egress
+spec:
+  podSelector:
+    matchLabels:
+      network.emb/smtp-client: 'true'
+  policyTypes: [Egress]
+  egress:
+    - ports:
+        - { protocol: TCP, port: 587 }
+        - { protocol: TCP, port: 465 }
+---
+# ── Service-to-service HTTP (callers' egress) ─────────────────────────────────
+# Every service except the gateway verifies JWTs against auth-service's JWKS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-jwks-egress
+spec:
+  podSelector:
+    matchLabels:
+      network.emb/jwks-client: 'true'
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth-service
+      ports:
+        - { protocol: TCP, port: 3001 }
+---
+# order-service calls product-service and payment-service /internal/* (x-internal-token).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: order-service
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: product-service
+      ports:
+        - { protocol: TCP, port: 3003 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: payment-service
+      ports:
+        - { protocol: TCP, port: 3006 }
+---
+# The gateway proxies to every public service (never to the worker).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth-service
+      ports:
+        - { protocol: TCP, port: 3001 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: user-service
+      ports:
+        - { protocol: TCP, port: 3002 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: product-service
+      ports:
+        - { protocol: TCP, port: 3003 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: inventory-service
+      ports:
+        - { protocol: TCP, port: 3004 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: order-service
+      ports:
+        - { protocol: TCP, port: 3005 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: payment-service
+      ports:
+        - { protocol: TCP, port: 3006 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: notification-service
+      ports:
+        - { protocol: TCP, port: 3007 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: audit-service
+      ports:
+        - { protocol: TCP, port: 3008 }
+---
+# ── Ingress (receivers) ───────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  policyTypes: [Ingress]
+  ingress:
+    # Public traffic only via the ingress controller.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.emb/ingress-controller: 'true'
+      ports:
+        - { protocol: TCP, port: 8080 }
+    # Metrics live on a separate port that only Prometheus may reach.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 9464 }
+---
+# auth-service: from gateway, every JWKS client and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: auth-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        # JWKS fetches from every verifying service
+        - podSelector:
+            matchLabels:
+              network.emb/jwks-client: 'true'
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3001 }
+---
+# user-service: from gateway and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: user-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3002 }
+---
+# product-service: from gateway, order-service (/internal) and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: product-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: product-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: order-service
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3003 }
+---
+# inventory-service: from gateway and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: inventory-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: inventory-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3004 }
+---
+# order-service: from gateway and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: order-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3005 }
+---
+# payment-service: from gateway, order-service (/internal) and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: payment-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: order-service
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3006 }
+---
+# notification-service: from gateway and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notification-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3007 }
+---
+# audit-service: from gateway and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: audit-service-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: audit-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3008 }
+---
+# worker: metrics only. Its dead-letter admin API is reached with
+# `kubectl port-forward` (not routed by the gateway, no Ingress).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: worker-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.emb/monitoring: 'true'
+      ports:
+        - { protocol: TCP, port: 3009 }

@@ -1,0 +1,29 @@
+# Only the API gateway is exposed. Internal routes (/internal/*, service
+# /health/*, /metrics, /admin/*) are never routed by the gateway itself, and the
+# worker's admin API has no Ingress at all.
+#
+# Controller-agnostic: no controller-specific annotations here. Set
+# spec.ingressClassName in an overlay if the cluster has no default IngressClass.
+# TLS: the Secret named below is expected to be created by cert-manager (see the
+# production-example overlay) or by you. The hostname is a placeholder.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway
+  labels:
+    app.kubernetes.io/name: api-gateway
+spec:
+  tls:
+    - hosts: [api.example.com]
+      secretName: emb-api-tls
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  name: http

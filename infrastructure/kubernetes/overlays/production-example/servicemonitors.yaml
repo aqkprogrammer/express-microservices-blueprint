@@ -1,0 +1,35 @@
+# REQUIRES the Prometheus Operator CRDs (monitoring.coreos.com/v1), e.g. from
+# kube-prometheus-stack. Without them `kubectl apply` fails on this file:
+# remove it from kustomization.yaml and rely on the prometheus.io/* pod
+# annotations or your own scrape config instead.
+#
+# Your Prometheus must select these objects (serviceMonitorSelector /
+# serviceMonitorNamespaceSelector), and its namespace must carry the label
+# network.emb/monitoring=true so the NetworkPolicies admit the scrapes.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: emb-services
+spec:
+  selector:
+    matchExpressions:
+      - { key: app.kubernetes.io/part-of, operator: In, values: [express-microservices-blueprint] }
+      # The gateway's public port never serves /metrics; see emb-api-gateway below.
+      - { key: app.kubernetes.io/name, operator: NotIn, values: [api-gateway] }
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: emb-api-gateway
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
