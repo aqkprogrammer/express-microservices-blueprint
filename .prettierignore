@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+package-lock.json
+**/src/generated
+**/prisma/migrations/**/*.sql
+docs/assets/animated
+docs/api/openapi/*.json
+infrastructure/grafana/dashboards/*.json
+infrastructure/rabbitmq/definitions.json
+CHANGELOG.md

@@ -1,0 +1,24 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/config" },
+    { "path": "packages/logger" },
+    { "path": "packages/observability" },
+    { "path": "packages/contracts" },
+    { "path": "packages/http-kit" },
+    { "path": "packages/security" },
+    { "path": "packages/database" },
+    { "path": "packages/messaging" },
+    { "path": "packages/testing" },
+    { "path": "apps/product-service" },
+    { "path": "apps/inventory-service" },
+    { "path": "apps/order-service" },
+    { "path": "apps/payment-service" },
+    { "path": "apps/auth-service" },
+    { "path": "apps/user-service" },
+    { "path": "apps/notification-service" },
+    { "path": "apps/audit-service" },
+    { "path": "apps/worker" },
+    { "path": "apps/api-gateway" }
+  ]
+}

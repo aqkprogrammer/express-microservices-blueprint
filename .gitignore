@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+**/src/generated/
+
+# Environment & secrets — never commit real values
+.env
+.env.*
+!.env.example
+**/.env
+!**/.env.example
+*.pem
+!infrastructure/docker/empty-ca.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
+infrastructure/**/secrets/
+
+# Local data, dumps and backups (may contain personal data)
+*.dump
+*.sql.gz
+*.backup
+backups/
+data/
+pgdata/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Load-test output
+tests/load/results/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Tooling
+.eslintcache
+.vitest/
