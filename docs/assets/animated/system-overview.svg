@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="590" viewBox="0 0 1080 590" role="img" aria-labelledby="t d">
+<title id="t">Express Microservices Blueprint — system overview</title>
+<desc id="d">Static system overview. Clients reach only the api-gateway on port 8080, which uses Redis for rate limits and proxies to eight Express services. Each service owns one PostgreSQL database, publishes events through a transactional outbox and consumes them from RabbitMQ (exchanges domain.events, maintenance.commands and dead-letters). The worker schedules maintenance commands and archives dead letters. notification-service sends email through Mailpit. Every service exports traces to Jaeger and logs to Loki through OpenTelemetry; Prometheus scrapes metrics and Grafana shows dashboards.</desc>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif;fill:#1f2328}
+.tt{font-size:16px;font-weight:600}
+.st{font-size:12px;fill:#59636e}
+.nt{font-size:12.5px;font-weight:600;text-anchor:middle}
+.ns{font-size:10.5px;fill:#59636e;text-anchor:middle}
+.lb{font-size:11.5px;paint-order:stroke;stroke:#ffffff;stroke-width:4px;stroke-linejoin:round}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.nb{font-size:10px;font-weight:600;text-anchor:middle;fill:#59636e}
+.ft{font-size:10.5px;fill:#59636e}
+.base{fill:none;stroke:#d1d9e0;stroke-width:1.4}
+.base.async{stroke-dasharray:5 4}
+.ov{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:100 110;stroke-dashoffset:0}
+.dot{opacity:0}
+.row{opacity:0}
+.a{animation-duration:1s;animation-iteration-count:infinite;animation-timing-function:ease-in-out;animation-fill-mode:both}
+.lin{animation-timing-function:linear}
+.so{display:none}
+@media (prefers-reduced-motion:reduce){.a{animation:none!important}.dot,.row,.ao{display:none}.so{display:inline}}</style>
+<rect x="0.5" y="0.5" width="1079" height="589" rx="14" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="24" y="32" class="tt">Express Microservices Blueprint — system overview</text>
+<text x="24" y="50" class="st">Static diagram (no animation). Mermaid version: docs/architecture/01-system-overview.md</text>
+<rect x="204" y="66" width="864" height="468" rx="10" fill="#ffffff" stroke="#d1d9e0" stroke-dasharray="4 3"/>
+<text x="214" y="82" class="ft" style="font-weight:600">docker compose project &quot;emb&quot; — private network</text>
+<rect x="396" y="92" width="506" height="214" rx="10" fill="#f6fef8" stroke="#d1d9e0" stroke-dasharray="4 3"/>
+<text x="406" y="108" class="ft" style="font-weight:600">Express + TypeScript services (OpenTelemetry SDK in each)</text>
+<rect x="396" y="424" width="506" height="96" rx="10" fill="#fffaf5" stroke="#d1d9e0" stroke-dasharray="4 3"/>
+<text x="406" y="440" class="ft" style="font-weight:600">Observability</text>
+<path d="M152 202L222 202" fill="none" stroke="#0969da" stroke-width="1.5"/>
+<polygon points="222,202 215.8,205.2 215.8,198.8" fill="#0969da"/>
+<text x="187" y="196" class="lb" text-anchor="middle" style="font-size:10.5px;fill:#59636e">HTTP :8080</text>
+<path d="M366 202L396 202" fill="none" stroke="#0969da" stroke-width="1.5"/>
+<polygon points="396,202 389.8,205.2 389.8,198.8" fill="#0969da"/>
+<path d="M272.4 238L272.4 330" fill="none" stroke="#818b98" stroke-width="1.5"/>
+<polygon points="272.4,330 269.2,323.8 275.6,323.8" fill="#818b98"/>
+<text x="278" y="288" class="lb" text-anchor="start" style="font-size:10.5px;fill:#59636e">rate limits</text>
+<path d="M396 262L340 262L340 330" fill="none" stroke="#818b98" stroke-width="1.5"/>
+<polygon points="340,330 336.8,323.8 343.2,323.8" fill="#818b98"/>
+<text x="346" y="318" class="lb" text-anchor="start" style="font-size:10.5px;fill:#59636e">cache · locks</text>
+<path d="M470 306L470 330" fill="none" stroke="#8250df" stroke-width="1.5" stroke-dasharray="5 4"/>
+<polygon points="470,330 466.8,323.8 473.2,323.8" fill="#8250df"/>
+<polygon points="470,306 473.2,312.2 466.8,312.2" fill="#8250df"/>
+<text x="478" y="322" class="lb" text-anchor="start" style="font-size:10.5px;fill:#59636e">AMQP (outbox → publish, consume)</text>
+<path d="M828 306L828 330" fill="none" stroke="#818b98" stroke-width="1.5"/>
+<polygon points="828,330 824.8,323.8 831.2,323.8" fill="#818b98"/>
+<text x="820" y="322" class="lb" text-anchor="end" style="font-size:10.5px;fill:#59636e">SQL (own DB only)</text>
+<path d="M888 265L924 265" fill="none" stroke="#818b98" stroke-width="1.5"/>
+<polygon points="924,265 917.8,268.2 917.8,261.8" fill="#818b98"/>
+<text x="906" y="259" class="lb" text-anchor="middle" style="font-size:10.5px;fill:#59636e">SMTP</text>
+<path d="M902 290L914 290L914 472L902 472" fill="none" stroke="#bc4c00" stroke-width="1.5" stroke-dasharray="5 4"/>
+<polygon points="902,472 908.2,468.8 908.2,475.2" fill="#bc4c00"/>
+<text x="922" y="420" class="lb" text-anchor="start" style="font-size:10.5px;fill:#59636e">OTLP traces + logs</text>
+<path d="M914 472L914 472" fill="none" stroke="#bc4c00" stroke-width="1.5"/>
+<text x="922" y="436" class="lb" text-anchor="start" style="font-size:10.5px;fill:#59636e">/metrics scrapes</text>
+<g><rect x="24" y="172" width="128" height="60" rx="8" fill="#f6f8fa" stroke="#818b98" stroke-width="1.2"/><text x="88" y="199" class="nt">Clients</text><text x="88" y="212" class="ns">browser · mobile · API</text></g>
+<g><rect x="222" y="166" width="144" height="72" rx="8" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.2"/><text x="294" y="192.5" class="nt">api-gateway</text><text x="294" y="205.5" class="ns">rate limit · proxy</text><text x="294" y="218.5" class="ns">breaker · Swagger /docs</text></g>
+<g><rect x="222" y="330" width="144" height="60" rx="8" fill="#ffebe9" stroke="#ff8182" stroke-width="1.2"/><text x="294" y="350.5" class="nt">Redis 8</text><text x="294" y="363.5" class="ns">rate limits · cache</text><text x="294" y="376.5" class="ns">scheduler lock</text></g>
+<g><rect x="410" y="116" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="485" y="138" class="nt">auth-service</text><text x="485" y="151" class="ns">:3001 · auth_db</text></g>
+<g><rect x="574" y="116" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="649" y="138" class="nt">user-service</text><text x="649" y="151" class="ns">:3002 · users_db</text></g>
+<g><rect x="738" y="116" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="813" y="138" class="nt">product-service</text><text x="813" y="151" class="ns">:3003 · product_db</text></g>
+<g><rect x="410" y="178" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="485" y="200" class="nt">inventory-service</text><text x="485" y="213" class="ns">:3004 · inventory_db</text></g>
+<g><rect x="574" y="178" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="649" y="200" class="nt">order-service</text><text x="649" y="213" class="ns">:3005 · orders_db</text></g>
+<g><rect x="738" y="178" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="813" y="200" class="nt">payment-service</text><text x="813" y="213" class="ns">:3006 · payment_db</text></g>
+<g><rect x="410" y="240" width="150" height="50" rx="8" fill="#e7ecf0" stroke="#818b98" stroke-width="1.2"/><text x="485" y="262" class="nt">worker</text><text x="485" y="275" class="ns">:3009 · scheduler · DLQ</text></g>
+<g><rect x="574" y="240" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="649" y="262" class="nt">audit-service</text><text x="649" y="275" class="ns">:3008 · audit_db</text></g>
+<g><rect x="738" y="240" width="150" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="813" y="262" class="nt">notification-service</text><text x="813" y="275" class="ns">:3007 · notification_db</text></g>
+<g><rect x="924" y="240" width="132" height="50" rx="8" fill="#f6f8fa" stroke="#818b98" stroke-width="1.2"/><text x="990" y="262" class="nt">Mailpit</text><text x="990" y="275" class="ns">SMTP · UI :8025</text></g>
+<g><rect x="410" y="330" width="232" height="66" rx="8" fill="#fbefff" stroke="#c297ff" stroke-width="1.2"/><text x="526" y="353.5" class="nt">RabbitMQ 4.1</text><text x="526" y="366.5" class="ns">domain.events · maintenance.commands</text><text x="526" y="379.5" class="ns">dead-letters · quorum queues + retry tiers</text></g>
+<g><rect x="656" y="330" width="232" height="66" rx="8" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.2"/><text x="772" y="353.5" class="nt">PostgreSQL 17</text><text x="772" y="366.5" class="ns">one database + role per service</text><text x="772" y="379.5" class="ns">outbox_events · processed_messages</text></g>
+<g><rect x="410" y="456" width="109" height="50" rx="8" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.2"/><text x="464.5" y="478" class="nt">Jaeger</text><text x="464.5" y="491" class="ns">traces · UI :16686</text></g>
+<g><rect x="533" y="456" width="109" height="50" rx="8" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.2"/><text x="587.5" y="478" class="nt">Loki</text><text x="587.5" y="491" class="ns">logs via OTLP</text></g>
+<g><rect x="656" y="456" width="109" height="50" rx="8" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.2"/><text x="710.5" y="478" class="nt">Prometheus</text><text x="710.5" y="491" class="ns">scrapes /metrics · :9090</text></g>
+<g><rect x="779" y="456" width="109" height="50" rx="8" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.2"/><text x="833.5" y="478" class="nt">Grafana</text><text x="833.5" y="491" class="ns">dashboards · :3000</text></g>
+<text x="24" y="576" class="ft">Static overview · solid = synchronous HTTP / SQL · dashed = asynchronous AMQP or telemetry · only :8080 serves the public API; every published port binds to 127.0.0.1</text>
+</svg>

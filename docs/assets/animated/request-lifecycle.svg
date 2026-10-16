@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="628" viewBox="0 0 1080 628" role="img" aria-labelledby="t d">
+<title id="t">Request lifecycle: client → gateway → service</title>
+<desc id="d">Animated sequence. 1 client sends POST /api/v1/orders with a bearer token and Idempotency-Key. 2 the gateway normalises the path, assigns x-request-id and x-correlation-id and starts a server span. 3-4 it checks the Redis-backed rate limit (fail-open). 5 it proxies to order-service with a 10 second timeout and a per-upstream circuit breaker; the fetch instrumentation injects traceparent. 6-7 order-service verifies the ES256 access token against the cached JWKS of auth-service. 8-9 it snapshots prices from product-service over the internal API. 10 it commits the order, saga state and outbox row in one transaction. 11-12 the response, or an application/problem+json error, flows back with X-Request-Id.</desc>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif;fill:#1f2328}
+.tt{font-size:16px;font-weight:600}
+.st{font-size:12px;fill:#59636e}
+.nt{font-size:12.5px;font-weight:600;text-anchor:middle}
+.ns{font-size:10.5px;fill:#59636e;text-anchor:middle}
+.lb{font-size:11.5px;paint-order:stroke;stroke:#ffffff;stroke-width:4px;stroke-linejoin:round}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.nb{font-size:10px;font-weight:600;text-anchor:middle;fill:#59636e}
+.ft{font-size:10.5px;fill:#59636e}
+.base{fill:none;stroke:#d1d9e0;stroke-width:1.4}
+.base.async{stroke-dasharray:5 4}
+.ov{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:100 110;stroke-dashoffset:0}
+.dot{opacity:0}
+.row{opacity:0}
+.a{animation-duration:14s;animation-iteration-count:infinite;animation-timing-function:ease-in-out;animation-fill-mode:both}
+.lin{animation-timing-function:linear}
+.so{display:none}
+@media (prefers-reduced-motion:reduce){.a{animation:none!important}.dot,.row,.ao{display:none}.so{display:inline}}
+@keyframes d0{0%,4.3%{stroke-dashoffset:105;opacity:1}8.4%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f0{0%,5%{opacity:0}7.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes h0{0%,8%{opacity:0}8.4%,95%{opacity:1}100%{opacity:0}}
+@keyframes r0{0%,3.9%{opacity:0}5.7%,9.6%{opacity:1}11.4%,100%{opacity:0}}
+@keyframes d1{0%,10.3%{stroke-dashoffset:105;opacity:1}14.4%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f1{0%,11%{opacity:0}13.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes h1{0%,14%{opacity:0}14.4%,95%{opacity:1}100%{opacity:0}}
+@keyframes r1{0%,9.9%{opacity:0}11.7%,15.6%{opacity:1}17.4%,100%{opacity:0}}
+@keyframes d2{0%,16.3%{stroke-dashoffset:105;opacity:1}20.4%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f2{0%,17%{opacity:0}19.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes h2{0%,20%{opacity:0}20.4%,95%{opacity:1}100%{opacity:0}}
+@keyframes r2{0%,16%{opacity:0}17.7%,21.6%{opacity:1}23.4%,100%{opacity:0}}
+@keyframes d3{0%,22.3%{stroke-dashoffset:105;opacity:1}26.4%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f3{0%,23%{opacity:0}25.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes h3{0%,26.1%{opacity:0}26.4%,95%{opacity:1}100%{opacity:0}}
+@keyframes r3{0%,22%{opacity:0}23.8%,27.6%{opacity:1}29.4%,100%{opacity:0}}
+@keyframes d4{0%,28.3%{stroke-dashoffset:105;opacity:1}32.4%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f4{0%,29%{opacity:0}31.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes h4{0%,32.1%{opacity:0}32.4%,95%{opacity:1}100%{opacity:0}}
+@keyframes r4{0%,28%{opacity:0}29.8%,33.6%{opacity:1}35.4%,100%{opacity:0}}
+@keyframes d5{0%,34.3%{stroke-dashoffset:105;opacity:1}38.4%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f5{0%,35.1%{opacity:0}37.6%,95%{opacity:1}100%{opacity:0}}
+@keyframes h5{0%,38.1%{opacity:0}38.4%,95%{opacity:1}100%{opacity:0}}
+@keyframes r5{0%,34%{opacity:0}35.8%,39.6%{opacity:1}41.4%,100%{opacity:0}}
+@keyframes d6{0%,40.4%{stroke-dashoffset:105;opacity:1}44.4%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f6{0%,41.1%{opacity:0}43.6%,95%{opacity:1}100%{opacity:0}}
+@keyframes h6{0%,44.1%{opacity:0}44.4%,95%{opacity:1}100%{opacity:0}}
+@keyframes r6{0%,40%{opacity:0}41.8%,45.7%{opacity:1}47.4%,100%{opacity:0}}
+@keyframes d7{0%,46.4%{stroke-dashoffset:105;opacity:1}50.5%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f7{0%,47.1%{opacity:0}49.6%,95%{opacity:1}100%{opacity:0}}
+@keyframes h7{0%,50.1%{opacity:0}50.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes r7{0%,46%{opacity:0}47.8%,51.7%{opacity:1}53.5%,100%{opacity:0}}
+@keyframes d8{0%,52.4%{stroke-dashoffset:105;opacity:1}56.5%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f8{0%,53.1%{opacity:0}55.6%,95%{opacity:1}100%{opacity:0}}
+@keyframes h8{0%,56.1%{opacity:0}56.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes r8{0%,52%{opacity:0}53.8%,57.7%{opacity:1}59.5%,100%{opacity:0}}
+@keyframes d9{0%,58.4%{stroke-dashoffset:105;opacity:1}62.5%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f9{0%,59.1%{opacity:0}61.6%,95%{opacity:1}100%{opacity:0}}
+@keyframes h9{0%,62.1%{opacity:0}62.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes r9{0%,58%{opacity:0}59.8%,63.7%{opacity:1}65.5%,100%{opacity:0}}
+@keyframes d10{0%,64.4%{stroke-dashoffset:105;opacity:1}68.5%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f10{0%,65.1%{opacity:0}67.6%,95%{opacity:1}100%{opacity:0}}
+@keyframes h10{0%,68.1%{opacity:0}68.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes r10{0%,64%{opacity:0}65.8%,69.7%{opacity:1}71.5%,100%{opacity:0}}
+@keyframes d11{0%,70.4%{stroke-dashoffset:105;opacity:1}74.5%,95%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes f11{0%,71.1%{opacity:0}73.6%,95%{opacity:1}100%{opacity:0}}
+@keyframes h11{0%,74.1%{opacity:0}74.5%,95%{opacity:1}100%{opacity:0}}
+@keyframes r11{0%,70.1%{opacity:0}71.8%,75.7%{opacity:1}77.5%,100%{opacity:0}}
+@keyframes m0{0%,4.3%{transform:translate(134.1px,159px);opacity:0}4.6%{opacity:1}8.4%{transform:translate(269.4px,159px);opacity:1}9.8%,100%{transform:translate(269.4px,159px);opacity:0}}
+@keyframes m1{0%,16.3%{transform:translate(276.4px,235px);opacity:0}16.6%{opacity:1}20.4%{transform:translate(411.7px,235px);opacity:1}21.8%,100%{transform:translate(411.7px,235px);opacity:0}}
+@keyframes m2{0%,22.3%{transform:translate(412.7px,269px);opacity:0}22.6%{opacity:1}26.4%{transform:translate(277.4px,269px);opacity:1}27.8%,100%{transform:translate(277.4px,269px);opacity:0}}
+@keyframes m3{0%,28.3%{transform:translate(276.4px,303px);opacity:0}28.6%{opacity:1}32.4%{transform:translate(554px,303px);opacity:1}33.9%,100%{transform:translate(554px,303px);opacity:0}}
+@keyframes m4{0%,34.3%{transform:translate(561px,337px);opacity:0}34.6%{opacity:1}38.4%{transform:translate(696.3px,337px);opacity:1}39.9%,100%{transform:translate(696.3px,337px);opacity:0}}
+@keyframes m5{0%,46.4%{transform:translate(561px,413px);opacity:0}46.7%{opacity:1}50.5%{transform:translate(838.6px,413px);opacity:1}51.9%,100%{transform:translate(838.6px,413px);opacity:0}}
+@keyframes m6{0%,52.4%{transform:translate(839.6px,447px);opacity:0}52.7%{opacity:1}56.5%{transform:translate(562px,447px);opacity:1}57.9%,100%{transform:translate(562px,447px);opacity:0}}
+@keyframes m7{0%,58.4%{transform:translate(561px,481px);opacity:0}58.7%{opacity:1}62.5%{transform:translate(980.9px,481px);opacity:1}63.9%,100%{transform:translate(980.9px,481px);opacity:0}}
+@keyframes m8{0%,64.4%{transform:translate(555px,515px);opacity:0}64.7%{opacity:1}68.5%{transform:translate(277.4px,515px);opacity:1}69.9%,100%{transform:translate(277.4px,515px);opacity:0}}
+@keyframes m9{0%,70.4%{transform:translate(270.4px,549px);opacity:0}70.7%{opacity:1}74.5%{transform:translate(135.1px,549px);opacity:1}75.9%,100%{transform:translate(135.1px,549px);opacity:0}}
+@keyframes pg{0%{transform:scaleX(0)}95%{transform:scaleX(1)}100%{transform:scaleX(1)}}</style>
+<rect x="0.5" y="0.5" width="1079" height="627" rx="14" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="24" y="32" class="tt">Request lifecycle: client → gateway → service</text>
+<text x="24" y="50" class="st">POST /api/v1/orders through the API gateway (apps/api-gateway) into order-service</text>
+<rect class="row a" style="animation-name:r0" x="54" y="132" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r1" x="54" y="166" width="1002" height="42" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r2" x="54" y="208" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r3" x="54" y="242" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r4" x="54" y="276" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r5" x="54" y="310" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r6" x="54" y="344" width="1002" height="42" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r7" x="54" y="386" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r8" x="54" y="420" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r9" x="54" y="454" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r10" x="54" y="488" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<rect class="row a" style="animation-name:r11" x="54" y="522" width="1002" height="34" rx="6" fill="#f2f6fc"/>
+<line x1="131.1" y1="118" x2="131.1" y2="564" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<g><rect x="65" y="68" width="132.3" height="50" rx="8" fill="#f6f8fa" stroke="#818b98" stroke-width="1.2"/><text x="131.1" y="90" class="nt">Client</text><text x="131.1" y="103" class="ns">browser / API</text></g>
+<line x1="273.4" y1="118" x2="273.4" y2="564" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<g><rect x="207.3" y="68" width="132.3" height="50" rx="8" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.2"/><text x="273.4" y="90" class="nt">api-gateway</text><text x="273.4" y="103" class="ns">:8080</text></g>
+<line x1="415.7" y1="118" x2="415.7" y2="564" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<g><rect x="349.6" y="68" width="132.3" height="50" rx="8" fill="#ffebe9" stroke="#ff8182" stroke-width="1.2"/><text x="415.7" y="90" class="nt">Redis</text><text x="415.7" y="103" class="ns">rate-limit store</text></g>
+<line x1="558" y1="118" x2="558" y2="564" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<g><rect x="491.9" y="68" width="132.3" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="558" y="90" class="nt">order-service</text><text x="558" y="103" class="ns">:3005</text></g>
+<line x1="700.3" y1="118" x2="700.3" y2="564" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<g><rect x="634.1" y="68" width="132.3" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="700.3" y="90" class="nt">auth-service</text><text x="700.3" y="103" class="ns">JWKS</text></g>
+<line x1="842.6" y1="118" x2="842.6" y2="564" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<g><rect x="776.4" y="68" width="132.3" height="50" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.2"/><text x="842.6" y="90" class="nt">product-service</text><text x="842.6" y="103" class="ns">internal API</text></g>
+<line x1="984.9" y1="118" x2="984.9" y2="564" stroke="#d1d9e0" stroke-dasharray="3 4"/>
+<g><rect x="918.7" y="68" width="132.3" height="50" rx="8" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.2"/><text x="984.9" y="90" class="nt">orders_db</text><text x="984.9" y="103" class="ns">PostgreSQL</text></g>
+<circle cx="42" cy="155" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="158.5" class="nb">1</text>
+<circle cx="42" cy="188" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="191.5" class="nb">2</text>
+<circle cx="42" cy="231" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="234.5" class="nb">3</text>
+<circle cx="42" cy="265" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="268.5" class="nb">4</text>
+<circle cx="42" cy="299" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="302.5" class="nb">5</text>
+<circle cx="42" cy="333" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="336.5" class="nb">6</text>
+<circle cx="42" cy="366" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="369.5" class="nb">7</text>
+<circle cx="42" cy="409" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="412.5" class="nb">8</text>
+<circle cx="42" cy="443" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="446.5" class="nb">9</text>
+<circle cx="42" cy="477" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="480.5" class="nb">10</text>
+<circle cx="42" cy="511" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="514.5" class="nb">11</text>
+<circle cx="42" cy="545" r="8.5" fill="#ffffff" stroke="#d1d9e0"/>
+<text x="42" y="548.5" class="nb">12</text>
+<path class="base" d="M134.1 159H269.4"/><polygon points="269.4,159 263.2,162.2 263.2,155.8" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d0;stroke:#0969da" d="M134.1 159H269.4" pathLength="100"/><polygon class="a" style="animation-name:h0" points="269.4,159 263.2,162.2 263.2,155.8" fill="#0969da"/>
+<circle class="dot a" style="animation-name:m0" r="4.5" fill="#0969da" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f0" x="218.1" y="152" text-anchor="middle">POST /api/v1/orders · Bearer JWT · Idempotency-Key</text>
+<g class="a" style="animation-name:f1"><rect x="108.5" y="171" width="329.9" height="36" rx="5" fill="#ffffff" stroke="#59636e" stroke-width="1.3"/><text x="273.4" y="186" class="lb" text-anchor="middle">normalise path (reject .. and encoded separators)</text><text x="273.4" y="200" class="lb" text-anchor="middle">set x-request-id / x-correlation-id · start span</text></g>
+<path class="base" d="M276.4 235H411.7"/><polygon points="411.7,235 405.5,238.2 405.5,231.8" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d2;stroke:#0969da" d="M276.4 235H411.7" pathLength="100"/><polygon class="a" style="animation-name:h2" points="411.7,235 405.5,238.2 405.5,231.8" fill="#0969da"/>
+<circle class="dot a" style="animation-name:m1" r="4.5" fill="#0969da" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f2" x="344.6" y="228" text-anchor="middle">rate limit 300/min/IP (20 on auth routes)</text>
+<path class="base" d="M412.7 269H277.4"/><polygon points="277.4,269 283.7,265.8 283.7,272.2" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d3;stroke:#1a7f37" d="M412.7 269H277.4" pathLength="100"/><polygon class="a" style="animation-name:h3" points="277.4,269 283.7,265.8 283.7,272.2" fill="#1a7f37"/>
+<circle class="dot a" style="animation-name:m2" r="4.5" fill="#1a7f37" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f3" x="344.6" y="262" text-anchor="middle">under limit → continue (else 429; fail-open)</text>
+<path class="base" d="M276.4 303H554"/><polygon points="554,303 547.8,306.2 547.8,299.8" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d4;stroke:#0969da" d="M276.4 303H554" pathLength="100"/><polygon class="a" style="animation-name:h4" points="554,303 547.8,306.2 547.8,299.8" fill="#0969da"/>
+<circle class="dot a" style="animation-name:m3" r="4.5" fill="#0969da" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f4" x="415.7" y="296" text-anchor="middle">proxy: traceparent + x-request-id · 10 s timeout · breaker</text>
+<path class="base" d="M561 337H696.3"/><polygon points="696.3,337 690,340.2 690,333.8" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d5;stroke:#0969da" d="M561 337H696.3" pathLength="100"/><polygon class="a" style="animation-name:h5" points="696.3,337 690,340.2 690,333.8" fill="#0969da"/>
+<circle class="dot a" style="animation-name:m4" r="4.5" fill="#0969da" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f5" x="629.1" y="330" text-anchor="middle">GET /.well-known/jwks.json (cached)</text>
+<g class="a" style="animation-name:f6"><rect x="459.5" y="349" width="197.1" height="36" rx="5" fill="#ffffff" stroke="#59636e" stroke-width="1.3"/><text x="558" y="364" class="lb" text-anchor="middle">verify ES256 token locally</text><text x="558" y="378" class="lb" text-anchor="middle">iss · aud · exp · typ at+jwt</text></g>
+<path class="base" d="M561 413H838.6"/><polygon points="838.6,413 832.3,416.2 832.3,409.8" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d7;stroke:#0969da" d="M561 413H838.6" pathLength="100"/><polygon class="a" style="animation-name:h7" points="838.6,413 832.3,416.2 832.3,409.8" fill="#0969da"/>
+<circle class="dot a" style="animation-name:m5" r="4.5" fill="#0969da" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f7" x="700.3" y="406" text-anchor="middle">GET /internal/v1/products · 2 s timeout · breaker</text>
+<path class="base" d="M839.6 447H562"/><polygon points="562,447 568.2,443.8 568.2,450.2" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d8;stroke:#1a7f37" d="M839.6 447H562" pathLength="100"/><polygon class="a" style="animation-name:h8" points="562,447 568.2,443.8 568.2,450.2" fill="#1a7f37"/>
+<circle class="dot a" style="animation-name:m6" r="4.5" fill="#1a7f37" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f8" x="700.3" y="440" text-anchor="middle">price snapshot</text>
+<path class="base" d="M561 481H980.9"/><polygon points="980.9,481 974.6,484.2 974.6,477.8" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d9;stroke:#0969da" d="M561 481H980.9" pathLength="100"/><polygon class="a" style="animation-name:h9" points="980.9,481 974.6,484.2 974.6,477.8" fill="#0969da"/>
+<circle class="dot a" style="animation-name:m7" r="4.5" fill="#0969da" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f9" x="771.4" y="474" text-anchor="middle">one tx: order PENDING + saga + outbox row</text>
+<path class="base" d="M555 515H277.4"/><polygon points="277.4,515 283.7,511.8 283.7,518.2" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d10;stroke:#1a7f37" d="M555 515H277.4" pathLength="100"/><polygon class="a" style="animation-name:h10" points="277.4,515 283.7,511.8 283.7,518.2" fill="#1a7f37"/>
+<circle class="dot a" style="animation-name:m8" r="4.5" fill="#1a7f37" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f10" x="415.7" y="508" text-anchor="middle">201 Created (errors → application/problem+json)</text>
+<path class="base" d="M270.4 549H135.1"/><polygon points="135.1,549 141.4,545.8 141.4,552.2" fill="#d1d9e0"/>
+<path class="ov a" style="animation-name:d11;stroke:#1a7f37" d="M270.4 549H135.1" pathLength="100"/><polygon class="a" style="animation-name:h11" points="135.1,549 141.4,545.8 141.4,552.2" fill="#1a7f37"/>
+<circle class="dot a" style="animation-name:m9" r="4.5" fill="#1a7f37" stroke="#ffffff" stroke-width="1.5"/>
+<text class="lb a" style="animation-name:f11" x="252.9" y="542" text-anchor="middle">201 + X-Request-Id (upstream down → 502/503/504 problem+json)</text>
+<rect class="ao" x="24" y="578" width="1032" height="3" rx="1.5" fill="#eef1f4"/>
+<rect class="ao a lin" style="animation-name:pg;transform-box:fill-box;transform-origin:0 50%" x="24" y="578" width="1032" height="3" rx="1.5" fill="#0969da" fill-opacity="0.55"/>
+<text x="24" y="616" class="ft"><tspan class="ao">Animated (CSS) · loops every 14 s · </tspan><tspan class="so">Reduced motion: all steps shown · </tspan>static Mermaid version: docs/architecture/02-request-lifecycle.md</text><line x1="24" y1="594.5" x2="40" y2="594.5" stroke="#0969da" stroke-width="2.4" stroke-linecap="round"/><text x="46" y="598" class="ft">request</text><line x1="108.4" y1="594.5" x2="124.4" y2="594.5" stroke="#1a7f37" stroke-width="2.4" stroke-linecap="round"/><text x="130.4" y="598" class="ft">response / success</text>
+</svg>
