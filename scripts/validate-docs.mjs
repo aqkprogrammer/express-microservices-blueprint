@@ -52,7 +52,9 @@ const scripts = new Set(Object.keys(JSON.parse(readFileSync(join(root, 'package.
 for (const group of ['apps', 'packages']) {
   for (const name of readdirSync(join(root, group))) {
     const manifest = join(root, group, name, 'package.json');
-    if (existsSync(manifest)) for (const script of Object.keys(JSON.parse(readFileSync(manifest, 'utf8')).scripts ?? {})) scripts.add(script);
+    if (existsSync(manifest))
+      for (const script of Object.keys(JSON.parse(readFileSync(manifest, 'utf8')).scripts ?? {}))
+        scripts.add(script);
   }
 }
 const files = markdownFiles(root);
