@@ -1,0 +1,30 @@
+{
+  "name": "@emb/http-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@emb/logger": "0.1.0",
+    "@emb/observability": "0.1.0",
+    "@emb/contracts": "0.1.0",
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/swagger-ui-express": "^4.1.8"
+  }
+}
