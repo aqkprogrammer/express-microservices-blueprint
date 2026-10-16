@@ -1,0 +1,63 @@
+{
+  "name": "express-microservices-blueprint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-grade Express.js and TypeScript microservices blueprint with Docker, RabbitMQ, PostgreSQL, Redis, observability, security, CI/CD, and animated architecture diagrams.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0",
+    "npm": ">=10"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run db:generate && tsc -b tsconfig.build.json",
+    "clean": "tsc -b tsconfig.build.json --clean",
+    "typecheck": "npm run build && tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test:unit && npm run test:contract",
+    "test:unit": "vitest run --project unit",
+    "test:contract": "vitest run --project contract",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "vitest run --project e2e",
+    "test:resilience": "vitest run --project resilience",
+    "test:coverage": "vitest run --project unit --coverage",
+    "test:load": "node scripts/run-k6.mjs",
+    "db:generate": "npm run prisma:generate --workspaces --if-present",
+    "db:migrate": "npm run prisma:migrate --workspaces --if-present",
+    "db:seed": "npm run db:seed --workspaces --if-present",
+    "docker:up": "docker compose up --build -d --wait",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f --tail=100",
+    "docs:validate": "node scripts/validate-docs.mjs && node scripts/export-openapi.mjs --check",
+    "docs:openapi": "node scripts/export-openapi.mjs",
+    "diagrams:build": "node scripts/diagrams/build-animated-svgs.mjs",
+    "topology:generate": "node scripts/generate-rabbitmq-definitions.mjs",
+    "keys:generate": "node scripts/generate-dev-keys.mjs",
+    "dashboards:generate": "node scripts/generate-grafana-dashboards.mjs"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "prisma": "^7.10.1",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}
