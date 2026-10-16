@@ -1,0 +1,24 @@
+{
+  "name": "@emb/messaging",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@emb/contracts": "0.1.0",
+    "@emb/logger": "0.1.0",
+    "@emb/observability": "0.1.0",
+    "@emb/database": "0.1.0",
+    "amqplib": "^2.2.0",
+    "zod": "^4.6.7"
+  }
+}

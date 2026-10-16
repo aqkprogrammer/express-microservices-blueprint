@@ -1,0 +1,26 @@
+{
+  "name": "@emb/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@emb/contracts": "0.1.0",
+    "@emb/logger": "0.1.0",
+    "@emb/observability": "0.1.0",
+    "pg": "^8.16.0",
+    "@prisma/adapter-pg": "7.10.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.0"
+  }
+}

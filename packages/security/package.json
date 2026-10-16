@@ -1,0 +1,26 @@
+{
+  "name": "@emb/security",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@emb/http-kit": "0.1.0",
+    "@emb/contracts": "0.1.0",
+    "@emb/logger": "0.1.0",
+    "jose": "^6.2.12",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}
