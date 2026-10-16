@@ -1,0 +1,111 @@
+# Example alert rules. Thresholds are starting points for a local demo and
+# MUST be tuned against real traffic, SLOs and on-call policy before use in
+# production. Each rule names the runbook section in docs/operations/runbook.md.
+groups:
+  - name: availability
+    rules:
+      - alert: ServiceDown
+        expr: up{job="services"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: '{{ $labels.instance }} is not being scraped'
+          runbook: docs/operations/runbook.md#service-down
+
+      - alert: HighHttpErrorRate
+        expr: |
+          sum by (service) (rate(http_requests_total{status_code=~"5.."}[5m]))
+            / sum by (service) (rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.service }} 5xx ratio above 5%'
+          runbook: docs/operations/runbook.md#elevated-error-rate
+
+      - alert: HighHttpLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket{route!~"/health.*|/metrics"}[5m]))) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.service }} p95 latency above 1s'
+          runbook: docs/operations/runbook.md#latency
+
+  - name: messaging
+    rules:
+      - alert: RabbitMQQueueBacklog
+        expr: max by (queue) (rabbitmq_detailed_queue_messages_ready or rabbitmq_queue_messages_ready) > 1000
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Queue {{ $labels.queue }} has a growing backlog'
+          runbook: docs/operations/runbook.md#queue-backlog
+
+      - alert: MessagesDeadLettered
+        expr: sum by (queue, reason) (increase(messaging_dead_lettered_total[15m])) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: 'Messages from {{ $labels.queue }} were dead-lettered ({{ $labels.reason }})'
+          runbook: docs/operations/runbook.md#dead-letters
+
+      - alert: RepeatedDeadLetters
+        expr: sum by (queue) (increase(dead_letters_archived_total[1h])) > 10
+        labels: { severity: critical }
+        annotations:
+          summary: 'More than 10 dead letters from {{ $labels.queue }} in the last hour'
+          runbook: docs/operations/runbook.md#dead-letters
+
+      - alert: OutboxPublishingStalled
+        expr: max by (service) (outbox_oldest_pending_age_seconds) > 120
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: '{{ $labels.service }} has unpublished outbox events older than 2 minutes'
+          runbook: docs/operations/runbook.md#outbox-stalled
+
+      - alert: BrokerConnectionLost
+        expr: messaging_connection_up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: '{{ $labels.service }} cannot reach RabbitMQ'
+          runbook: docs/operations/runbook.md#broker-unavailable
+
+  - name: saga
+    rules:
+      - alert: SagaFailureRateHigh
+        expr: |
+          sum(rate(saga_completed_total{outcome!="confirmed"}[15m]))
+            / sum(rate(saga_completed_total[15m])) > 0.25
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'More than 25% of order sagas end cancelled or in review'
+          runbook: docs/operations/runbook.md#saga-failures
+
+      - alert: OrdersAwaitingManualReview
+        expr: increase(saga_completed_total{outcome="requires_review"}[30m]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: 'Orders require manual review (unknown payment outcome or failed stock commit)'
+          runbook: docs/operations/runbook.md#orders-requiring-review
+
+  - name: database
+    rules:
+      - alert: DatabasePoolExhausted
+        expr: max by (service, pool) (db_pool_connections{state="waiting"}) > 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.service }} has requests waiting for a database connection'
+          runbook: docs/operations/runbook.md#database-pool-exhaustion
+
+      - alert: DatabasePoolNearCapacity
+        expr: |
+          max by (service, pool) (db_pool_connections{state="total"})
+            / max by (service, pool) (db_pool_max_connections) > 0.9
+        for: 10m
+        labels: { severity: info }
+        annotations:
+          summary: '{{ $labels.service }} uses >90% of its database pool'
+          runbook: docs/operations/runbook.md#database-pool-exhaustion

@@ -1,0 +1,25 @@
+# Keep the build context small and free of secrets.
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/src/generated
+.git
+.github
+.env
+.env.*
+!.env.example
+**/*.pem
+**/*.key
+secrets
+docs
+tests
+*.md
+!apps/**/README.md
+infrastructure/grafana
+infrastructure/kubernetes
+infrastructure/prometheus
+infrastructure/postgres
+infrastructure/rabbitmq
+infrastructure/tracing
+infrastructure/loki

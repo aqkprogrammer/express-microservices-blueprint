@@ -1,0 +1,425 @@
+# Express Microservices Blueprint — complete local environment.
+#
+#   docker compose up --build            # build and start everything
+#   docker compose down                  # stop (keeps data volumes)
+#   docker compose down --volumes        # DANGER: also deletes all local data
+#
+# Every value below has a synthetic local-development default so the stack
+# starts without configuration. Override them in a `.env` file (see
+# .env.example). Never use these defaults outside your workstation.
+#
+# Published ports bind to 127.0.0.1 only. Databases and the broker are not
+# published at all; use docker-compose.dev.yml when you need host access.
+
+name: emb
+
+x-node-build: &node-build
+  context: .
+  dockerfile: infrastructure/docker/node-service.Dockerfile
+  target: runtime
+  secrets:
+    - extra_ca
+
+x-service-env: &service-env
+  NODE_ENV: development
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-emb}:${RABBITMQ_PASSWORD:-local-dev-rabbitmq-password}@rabbitmq:5672
+  JWKS_URL: http://auth-service:3001/.well-known/jwks.json
+  INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-local-dev-internal-token-change-me-000000}
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+  OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://loki:3100/otlp/v1/logs
+  OTEL_LOGS_EXPORTER: otlp
+  OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-1.0}
+
+x-service: &service
+  init: true
+  restart: unless-stopped
+  depends_on: &service-deps
+    migrator:
+      condition: service_completed_successfully
+    rabbitmq:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+  healthcheck:
+    test:
+      [
+        'CMD',
+        'node',
+        '-e',
+        "fetch('http://127.0.0.1:'+process.env.PORT+'/health/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+      ]
+    interval: 10s
+    timeout: 3s
+    start_period: 30s
+    retries: 6
+  stop_grace_period: 20s
+  deploy:
+    resources:
+      limits:
+        memory: 256M
+        cpus: '0.50'
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+
+services:
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-postgres-password}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-local-dev-auth-db-password}
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD:-local-dev-user-db-password}
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-local-dev-product-db-password}
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD:-local-dev-inventory-db-password}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-local-dev-order-db-password}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-local-dev-payment-db-password}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-local-dev-notification-db-password}
+      AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD:-local-dev-audit-db-password}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD:-local-dev-worker-db-password}
+    command: ['postgres', '-c', 'max_connections=200', '-c', 'shared_buffers=128MB']
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy: { resources: { limits: { memory: 512M } } }
+    logging: *logging
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    # Cache and rate-limit counters only: no persistence, bounded memory with LRU eviction.
+    command:
+      [
+        'redis-server',
+        '--save',
+        '',
+        '--appendonly',
+        'no',
+        '--maxmemory',
+        '128mb',
+        '--maxmemory-policy',
+        'allkeys-lru',
+      ]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy: { resources: { limits: { memory: 192M } } }
+    logging: *logging
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    restart: unless-stopped
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-emb}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-local-dev-rabbitmq-password}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./infrastructure/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/20-emb.conf:ro
+      - ./infrastructure/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    ports:
+      - 127.0.0.1:15672:15672 # Management UI
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+    deploy: { resources: { limits: { memory: 512M } } }
+    logging: *logging
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 2000
+    ports:
+      - 127.0.0.1:8025:8025 # Email preview UI
+    deploy: { resources: { limits: { memory: 128M } } }
+    logging: *logging
+
+  # ── One-shot release steps ──────────────────────────────────────────────────
+  keygen:
+    image: node:24-alpine
+    # Creates a development JWT signing key in a volume if none exists, readable
+    # only by the unprivileged `node` user (uid 1000) that auth-service runs as.
+    command:
+      ['sh', '-c', 'node /scripts/generate-dev-keys.mjs /keys && chown 1000:1000 /keys/jwt-private.pem']
+    volumes:
+      - jwt-keys:/keys
+      - ./scripts/generate-dev-keys.mjs:/scripts/generate-dev-keys.mjs:ro
+    logging: *logging
+
+  migrator:
+    build:
+      <<: *node-build
+      target: migrator
+      args:
+        SERVICE: auth-service
+    image: emb/migrator:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RUN_SEED: ${RUN_SEED:-true}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-emb}:${RABBITMQ_PASSWORD:-local-dev-rabbitmq-password}@rabbitmq:5672
+      AUTH_SERVICE_DATABASE_URL: postgresql://auth_svc:${AUTH_DB_PASSWORD:-local-dev-auth-db-password}@postgres:5432/auth_db
+      USER_SERVICE_DATABASE_URL: postgresql://users_svc:${USER_DB_PASSWORD:-local-dev-user-db-password}@postgres:5432/users_db
+      PRODUCT_SERVICE_DATABASE_URL: postgresql://product_svc:${PRODUCT_DB_PASSWORD:-local-dev-product-db-password}@postgres:5432/product_db
+      INVENTORY_SERVICE_DATABASE_URL: postgresql://inventory_svc:${INVENTORY_DB_PASSWORD:-local-dev-inventory-db-password}@postgres:5432/inventory_db
+      ORDER_SERVICE_DATABASE_URL: postgresql://orders_svc:${ORDER_DB_PASSWORD:-local-dev-order-db-password}@postgres:5432/orders_db
+      PAYMENT_SERVICE_DATABASE_URL: postgresql://payment_svc:${PAYMENT_DB_PASSWORD:-local-dev-payment-db-password}@postgres:5432/payment_db
+      NOTIFICATION_SERVICE_DATABASE_URL: postgresql://notification_svc:${NOTIFICATION_DB_PASSWORD:-local-dev-notification-db-password}@postgres:5432/notification_db
+      AUDIT_SERVICE_DATABASE_URL: postgresql://audit_svc:${AUDIT_DB_PASSWORD:-local-dev-audit-db-password}@postgres:5432/audit_db
+      WORKER_DATABASE_URL: postgresql://worker_svc:${WORKER_DB_PASSWORD:-local-dev-worker-db-password}@postgres:5432/worker_db
+    restart: 'no'
+    logging: *logging
+
+  # ── Application services ────────────────────────────────────────────────────
+  auth-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: auth-service } }
+    image: emb/auth-service:local
+    depends_on:
+      <<: *service-deps
+      keygen:
+        condition: service_completed_successfully
+    environment:
+      <<: *service-env
+      PORT: 3001
+      DATABASE_URL: postgresql://auth_svc:${AUTH_DB_PASSWORD:-local-dev-auth-db-password}@postgres:5432/auth_db
+      JWT_PRIVATE_KEY_FILE: /run/keys/jwt-private.pem
+      # Plain HTTP on localhost: browsers accept Secure cookies only over HTTPS (or localhost).
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PASSWORD_RESET_URL: http://localhost:8080/reset-password
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.test}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-local-dev-admin-password}
+    volumes:
+      - jwt-keys:/run/keys:ro
+    # Argon2id hashing needs ~19 MiB per concurrent login.
+    deploy: { resources: { limits: { memory: 384M, cpus: '1.0' } } }
+
+  user-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: user-service } }
+    image: emb/user-service:local
+    environment:
+      <<: *service-env
+      PORT: 3002
+      DATABASE_URL: postgresql://users_svc:${USER_DB_PASSWORD:-local-dev-user-db-password}@postgres:5432/users_db
+
+  product-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: product-service } }
+    image: emb/product-service:local
+    depends_on:
+      <<: *service-deps
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *service-env
+      PORT: 3003
+      DATABASE_URL: postgresql://product_svc:${PRODUCT_DB_PASSWORD:-local-dev-product-db-password}@postgres:5432/product_db
+      REDIS_URL: redis://redis:6379
+
+  inventory-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: inventory-service } }
+    image: emb/inventory-service:local
+    environment:
+      <<: *service-env
+      PORT: 3004
+      DATABASE_URL: postgresql://inventory_svc:${INVENTORY_DB_PASSWORD:-local-dev-inventory-db-password}@postgres:5432/inventory_db
+      RESERVATION_TTL_MS: ${RESERVATION_TTL_MS:-900000}
+
+  order-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: order-service } }
+    image: emb/order-service:local
+    environment:
+      <<: *service-env
+      PORT: 3005
+      DATABASE_URL: postgresql://orders_svc:${ORDER_DB_PASSWORD:-local-dev-order-db-password}@postgres:5432/orders_db
+      PRODUCT_SERVICE_URL: http://product-service:3003
+      PAYMENT_SERVICE_URL: http://payment-service:3006
+      SAGA_INVENTORY_TIMEOUT_MS: ${SAGA_INVENTORY_TIMEOUT_MS:-60000}
+      SAGA_PAYMENT_TIMEOUT_MS: ${SAGA_PAYMENT_TIMEOUT_MS:-15000}
+
+  payment-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: payment-service } }
+    image: emb/payment-service:local
+    environment:
+      <<: *service-env
+      PORT: 3006
+      DATABASE_URL: postgresql://payment_svc:${PAYMENT_DB_PASSWORD:-local-dev-payment-db-password}@postgres:5432/payment_db
+      SIMULATOR_LATENCY_MS: ${SIMULATOR_LATENCY_MS:-50}
+      SIMULATOR_TIMEOUT_RESOLVES_AFTER_MS: ${SIMULATOR_TIMEOUT_RESOLVES_AFTER_MS:-20000}
+      RECONCILE_AFTER_MS: ${RECONCILE_AFTER_MS:-20000}
+
+  notification-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: notification-service } }
+    image: emb/notification-service:local
+    depends_on:
+      <<: *service-deps
+      mailpit:
+        condition: service_started
+    environment:
+      <<: *service-env
+      PORT: 3007
+      DATABASE_URL: postgresql://notification_svc:${NOTIFICATION_DB_PASSWORD:-local-dev-notification-db-password}@postgres:5432/notification_db
+      EMAIL_TRANSPORT: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      # Deliveries to *@bounce.test fail on purpose to demonstrate retries and the DLQ.
+      SIMULATE_FAILURE_DOMAIN: ${SIMULATE_FAILURE_DOMAIN:-bounce.test}
+
+  audit-service:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: audit-service } }
+    image: emb/audit-service:local
+    environment:
+      <<: *service-env
+      PORT: 3008
+      DATABASE_URL: postgresql://audit_svc:${AUDIT_DB_PASSWORD:-local-dev-audit-db-password}@postgres:5432/audit_db
+
+  worker:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: worker } }
+    image: emb/worker:local
+    depends_on:
+      <<: *service-deps
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *service-env
+      PORT: 3009
+      DATABASE_URL: postgresql://worker_svc:${WORKER_DB_PASSWORD:-local-dev-worker-db-password}@postgres:5432/worker_db
+      REDIS_URL: redis://redis:6379
+    ports:
+      - 127.0.0.1:3009:3009 # Dead-letter admin API (admin token required; never routed by the gateway)
+
+  api-gateway:
+    <<: *service
+    build: { <<: *node-build, args: { SERVICE: api-gateway } }
+    image: emb/api-gateway:local
+    depends_on:
+      redis: { condition: service_healthy }
+      auth-service: { condition: service_healthy }
+      user-service: { condition: service_healthy }
+      product-service: { condition: service_healthy }
+      inventory-service: { condition: service_healthy }
+      order-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
+      notification-service: { condition: service_healthy }
+      audit-service: { condition: service_healthy }
+    environment:
+      <<: *service-env
+      PORT: 8080
+      METRICS_PORT: 9464
+      REDIS_URL: redis://redis:6379
+      AUTH_SERVICE_URL: http://auth-service:3001
+      USER_SERVICE_URL: http://user-service:3002
+      PRODUCT_SERVICE_URL: http://product-service:3003
+      INVENTORY_SERVICE_URL: http://inventory-service:3004
+      ORDER_SERVICE_URL: http://order-service:3005
+      PAYMENT_SERVICE_URL: http://payment-service:3006
+      NOTIFICATION_SERVICE_URL: http://notification-service:3007
+      AUDIT_SERVICE_URL: http://audit-service:3008
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-20}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    ports:
+      - 127.0.0.1:8080:8080 # Public API + aggregated Swagger UI at /docs
+    # Every request passes through the gateway, so it gets more CPU than the services.
+    deploy: { resources: { limits: { memory: 256M, cpus: '1.0' } } }
+
+  # ── Observability ───────────────────────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/jaeger:2.9.0
+    restart: unless-stopped
+    command: ['--config', '/etc/jaeger/config.yaml']
+    volumes:
+      - ./infrastructure/tracing/jaeger.yaml:/etc/jaeger/config.yaml:ro
+    ports:
+      - 127.0.0.1:16686:16686 # Trace UI
+    deploy: { resources: { limits: { memory: 384M } } }
+    logging: *logging
+
+  loki:
+    image: grafana/loki:3.5.3
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/config.yaml']
+    volumes:
+      - ./infrastructure/loki/loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    deploy: { resources: { limits: { memory: 384M } } }
+    logging: *logging
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=3d
+      - --web.enable-lifecycle
+    volumes:
+      - ./infrastructure/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports:
+      - 127.0.0.1:9090:9090
+    deploy: { resources: { limits: { memory: 384M } } }
+    logging: *logging
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-local-dev-grafana-password}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_NEWS_NEWS_FEED_ENABLED: 'false'
+    volumes:
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+    ports:
+      - 127.0.0.1:3000:3000
+    deploy: { resources: { limits: { memory: 256M } } }
+    logging: *logging
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:
+  jwt-keys:
+
+secrets:
+  # Optional PEM bundle for TLS-intercepting proxies during image builds.
+  # Defaults to an empty file (no effect). Set EXTRA_CA_FILE to use one.
+  extra_ca:
+    file: ${EXTRA_CA_FILE:-./infrastructure/docker/empty-ca.pem}
