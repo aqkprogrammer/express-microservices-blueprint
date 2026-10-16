@@ -688,7 +688,20 @@ Ideas that would extend the blueprint without changing its principles:
 
 ## License and attribution
 
-[MIT](LICENSE) © The express-microservices-blueprint contributors.
+[MIT](LICENSE) © 2026 Abdul Qadir Khan and the express-microservices-blueprint contributors.
+
+### Maintainer
+
+- **Abdul Qadir Khan** ([@aqkprogrammer](https://github.com/aqkprogrammer)), author and maintainer
+
+### Contributors
+
+| Contributor                                                           | Role               |
+| --------------------------------------------------------------------- | ------------------ |
+| [Abdul Qadir Khan (@aqkprogrammer)](https://github.com/aqkprogrammer) | Author, maintainer |
+
+The full list is on GitHub's [contributors page](https://github.com/aqkprogrammer/express-microservices-blueprint/graphs/contributors).
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Built with Express, Prisma, RabbitMQ, PostgreSQL, Redis, OpenTelemetry, Jaeger, Grafana Loki,
 Prometheus and Grafana, all used under their respective licenses.
