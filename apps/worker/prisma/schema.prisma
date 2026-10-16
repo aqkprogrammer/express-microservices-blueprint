@@ -1,0 +1,54 @@
+// Worker — owns the dead-letter archive and scheduler run history.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Archived dead-lettered messages. Unique per (message, original queue): a message
+/// that dead-letters again after a replay increments `occurrences`.
+/// Status: ARCHIVED | REPLAYED | DISCARDED
+model DeadLetter {
+  id               String    @id @db.Uuid
+  messageId        String    @map("message_id")
+  originalQueue    String    @map("original_queue")
+  originalExchange String?   @map("original_exchange")
+  routingKey       String    @map("routing_key")
+  eventType        String?   @map("event_type")
+  reason           String
+  lastError        String?   @map("last_error")
+  correlationId    String?   @map("correlation_id")
+  /// Raw message body (already validated or rejected upstream); headers minus trace/retry noise.
+  body             String
+  headers          Json
+  status           String    @default("ARCHIVED")
+  occurrences      Int       @default(1)
+  replayCount      Int       @default(0) @map("replay_count")
+  firstSeenAt      DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(3)
+  lastSeenAt       DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(3)
+  resolvedBy       String?   @map("resolved_by") @db.Uuid
+
+  @@unique([messageId, originalQueue])
+  @@index([status, lastSeenAt])
+  @@index([originalQueue, status])
+  @@map("dead_letters")
+}
+
+/// One row per scheduled job publication (bounded by retention cleanup).
+model JobRun {
+  id          BigInt   @id @default(autoincrement())
+  task        String
+  outcome     String
+  durationMs  Int      @map("duration_ms")
+  error       String?
+  startedAt   DateTime @default(now()) @map("started_at") @db.Timestamptz(3)
+
+  @@index([task, startedAt])
+  @@map("job_runs")
+}

@@ -1,0 +1,96 @@
+// Notification service — owns templates, a recipient read model and delivery records.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Local copy of contact details, maintained from UserRegistered / UserProfileUpdated events
+/// so delivery never needs a synchronous call to user-service.
+model Recipient {
+  userId      String   @id @map("user_id") @db.Uuid
+  email       String
+  displayName String   @map("display_name")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("recipients")
+}
+
+model NotificationTemplate {
+  key       String   @id
+  channel   String   @default("email")
+  subject   String
+  bodyText  String   @map("body_text")
+  version   Int      @default(1)
+  updatedBy String?  @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("notification_templates")
+}
+
+/// Status: PENDING | SENT | FAILED
+model Notification {
+  id              String    @id @db.Uuid
+  /// The event that caused this notification; (sourceEventId, template) makes delivery idempotent.
+  sourceEventId   String    @map("source_event_id")
+  recipientUserId String    @map("recipient_user_id") @db.Uuid
+  template        String
+  channel         String    @default("email")
+  status          String    @default("PENDING")
+  attempts        Int       @default(0)
+  lastError       String?   @map("last_error")
+  /// Template data; keys listed in sensitiveKeys are removed once the message is sent or fails.
+  data            Json
+  sensitiveKeys   String[]  @map("sensitive_keys")
+  sentAt          DateTime? @map("sent_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([sourceEventId, template])
+  @@index([recipientUserId, createdAt])
+  @@index([status, createdAt])
+  @@map("notifications")
+}
+
+// ── Messaging infrastructure tables (identical in every service schema) ───────
+// Transactional outbox: written in the same transaction as the business change,
+// published by the in-process OutboxRelay (packages/messaging).
+model OutboxEvent {
+  id            String    @id @db.Uuid
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  envelope      Json
+  headers       Json      @default("{}")
+  /// PENDING | PUBLISHING | PUBLISHED (CHECK constraint in migration)
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([status, availableAt])
+  @@index([publishedAt])
+  @@map("outbox_events")
+}
+
+// Idempotent-consumer markers: (consumer, message id) inserted in the handler's transaction.
+model ProcessedMessage {
+  consumer    String
+  messageId   String   @map("message_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumer, messageId])
+  @@index([processedAt])
+  @@map("processed_messages")
+}

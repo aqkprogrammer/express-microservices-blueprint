@@ -1,0 +1,30 @@
+{
+  "name": "@emb/auth-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Identity: registration, Argon2id credentials, ES256 access tokens, refresh-token rotation with reuse detection, RBAC and password reset.",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node --import ./dist/telemetry.js dist/main.js",
+    "dev": "tsx watch --conditions=source --import ./src/telemetry.ts src/main.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@emb/config": "^0.1.0",
+    "@emb/contracts": "^0.1.0",
+    "@emb/database": "^0.1.0",
+    "@emb/http-kit": "^0.1.0",
+    "@emb/logger": "^0.1.0",
+    "@emb/messaging": "^0.1.0",
+    "@emb/observability": "^0.1.0",
+    "@emb/security": "^0.1.0",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "argon2": "^0.45.1",
+    "express": "^5.3.0",
+    "jose": "^6.2.12",
+    "zod": "^4.6.7"
+  }
+}
