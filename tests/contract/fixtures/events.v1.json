@@ -1,0 +1,186 @@
+{
+  "_comment": "Frozen v1 payload samples. If a schema change breaks one of these, it is a breaking change: publish a new version (e.g. OrderCreated.v2) instead of editing v1.",
+  "UserRegistered": {
+    "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "email": "ada@example.com",
+    "displayName": "Ada",
+    "roles": ["customer"],
+    "registeredAt": "2026-10-16T10:00:00.000Z"
+  },
+  "UserLoggedIn": {
+    "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "sessionId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1002"
+  },
+  "UserLoggedOut": {
+    "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "sessionId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1002"
+  },
+  "LoginFailed": { "userId": null, "reason": "invalid_credentials" },
+  "RefreshTokenReuseDetected": {
+    "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "sessionId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1002"
+  },
+  "PasswordResetRequested": {
+    "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "expiresAt": "2026-10-16T10:15:00.000Z"
+  },
+  "PasswordChanged": { "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001", "method": "reset" },
+  "UserProfileUpdated": {
+    "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "email": "ada@example.com",
+    "displayName": "Ada L."
+  },
+  "UserStatusChanged": {
+    "userId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "status": "suspended",
+    "previousStatus": "active",
+    "reason": "fraud review",
+    "changedBy": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1009"
+  },
+  "ProductCreated": {
+    "productId": "0b6f7c1e-5d0a-4c39-9a43-0f8a0c1b2001",
+    "sku": "KB-MECH-001",
+    "name": "Mechanical Keyboard",
+    "priceCents": 12900,
+    "currency": "USD",
+    "status": "active"
+  },
+  "ProductUpdated": {
+    "productId": "0b6f7c1e-5d0a-4c39-9a43-0f8a0c1b2001",
+    "sku": "KB-MECH-001",
+    "name": "Mechanical Keyboard",
+    "priceCents": 11900,
+    "currency": "USD",
+    "status": "active",
+    "changedFields": ["priceCents"]
+  },
+  "InventoryReserved": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "reservationId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3002",
+    "expiresAt": "2026-10-16T10:15:00.000Z",
+    "lines": [{ "productId": "0b6f7c1e-5d0a-4c39-9a43-0f8a0c1b2001", "quantity": 2 }]
+  },
+  "InventoryReservationFailed": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "reason": "insufficient_stock",
+    "unavailable": [{ "productId": "0b6f7c1e-5d0a-4c39-9a43-0f8a0c1b2008", "requested": 5, "available": 1 }]
+  },
+  "InventoryReleased": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "reservationId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3002",
+    "reason": "order_cancelled"
+  },
+  "InventoryReservationExpired": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "reservationId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3002"
+  },
+  "InventoryCommitted": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "reservationId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3002"
+  },
+  "InventoryCommitFailed": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "reason": "reservation expired and stock is no longer available"
+  },
+  "InventoryStockChanged": {
+    "productId": "0b6f7c1e-5d0a-4c39-9a43-0f8a0c1b2001",
+    "onHand": 118,
+    "reserved": 2,
+    "available": 116
+  },
+  "OrderCreated": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "customerId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "currency": "USD",
+    "totalCents": 25800,
+    "lines": [
+      {
+        "productId": "0b6f7c1e-5d0a-4c39-9a43-0f8a0c1b2001",
+        "sku": "KB-MECH-001",
+        "name": "Mechanical Keyboard",
+        "quantity": 2,
+        "unitPriceCents": 12900
+      }
+    ]
+  },
+  "PaymentAuthorizationRequested": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "customerId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "amountCents": 25800,
+    "currency": "USD",
+    "paymentMethodToken": "sim_card_approved",
+    "attempt": 1
+  },
+  "OrderConfirmed": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "customerId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "currency": "USD",
+    "totalCents": 25800,
+    "paymentId": "7b0c1b38-9a8e-4d55-8f3f-1a2b3c4d5e6f",
+    "lines": [
+      {
+        "productId": "0b6f7c1e-5d0a-4c39-9a43-0f8a0c1b2001",
+        "sku": "KB-MECH-001",
+        "name": "Mechanical Keyboard",
+        "quantity": 2,
+        "unitPriceCents": 12900
+      }
+    ]
+  },
+  "OrderCancelled": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "customerId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "reason": "payment_failed",
+    "previousStatus": "AWAITING_PAYMENT",
+    "cancelledBy": "system"
+  },
+  "OrderRequiresReview": {
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "customerId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "reason": "payment outcome unknown after 3 authorization attempts"
+  },
+  "PaymentAuthorized": {
+    "paymentId": "7b0c1b38-9a8e-4d55-8f3f-1a2b3c4d5e6f",
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "amountCents": 25800,
+    "currency": "USD"
+  },
+  "PaymentFailed": {
+    "paymentId": "7b0c1b38-9a8e-4d55-8f3f-1a2b3c4d5e6f",
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "reason": "declined"
+  },
+  "PaymentCaptured": {
+    "paymentId": "7b0c1b38-9a8e-4d55-8f3f-1a2b3c4d5e6f",
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "amountCents": 25800
+  },
+  "PaymentVoided": {
+    "paymentId": "7b0c1b38-9a8e-4d55-8f3f-1a2b3c4d5e6f",
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001"
+  },
+  "PaymentRefunded": {
+    "paymentId": "7b0c1b38-9a8e-4d55-8f3f-1a2b3c4d5e6f",
+    "orderId": "9d2f1c3a-8b7e-4c6d-9a43-0f8a0c1b3001",
+    "customerId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "amountCents": 25800,
+    "currency": "USD"
+  },
+  "NotificationRequested": {
+    "recipientUserId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "template": "password-reset",
+    "data": { "resetUrl": "http://localhost:8080/reset-password?token=example", "expiresInMinutes": 15 },
+    "sensitiveDataKeys": ["resetUrl"]
+  },
+  "NotificationSent": {
+    "notificationId": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+    "template": "welcome",
+    "recipientUserId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001"
+  },
+  "NotificationDeliveryFailed": {
+    "notificationId": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+    "template": "welcome",
+    "recipientUserId": "5b3c9a51-3c2e-4b8e-9a43-0f8a0c1b1001",
+    "attempts": 4
+  }
+}
