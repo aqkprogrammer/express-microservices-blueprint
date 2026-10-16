@@ -1,0 +1,103 @@
+// Auth service — owns credentials and sessions. Profiles live in user-service.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Credential {
+  id                String    @id @db.Uuid
+  /// Lower-cased, trimmed
+  email             String    @unique
+  /// Argon2id PHC string; never returned by any API
+  passwordHash      String    @map("password_hash")
+  roles             String[]
+  /// active | suspended | closed — mirrored from user-service via UserStatusChanged
+  status            String    @default("active")
+  failedLoginCount  Int       @default(0) @map("failed_login_count")
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(3)
+  passwordChangedAt DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  refreshTokens  RefreshToken[]
+  resetTokens    PasswordResetToken[]
+
+  @@map("credentials")
+}
+
+/// Opaque refresh tokens, stored only as SHA-256 hashes. A family is one login session;
+/// every refresh rotates the token, and replaying a rotated token revokes the family.
+model RefreshToken {
+  id            String     @id @db.Uuid
+  familyId      String     @map("family_id") @db.Uuid
+  userId        String     @map("user_id") @db.Uuid
+  tokenHash     String     @unique @map("token_hash")
+  expiresAt     DateTime   @map("expires_at") @db.Timestamptz(3)
+  revokedAt     DateTime?  @map("revoked_at") @db.Timestamptz(3)
+  revokedReason String?    @map("revoked_reason")
+  replacedById  String?    @map("replaced_by_id") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  user          Credential @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+/// Single-use, short-lived reset tokens, stored only as SHA-256 hashes.
+model PasswordResetToken {
+  id        String     @id @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  tokenHash String     @unique @map("token_hash")
+  expiresAt DateTime   @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?  @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      Credential @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ── Messaging infrastructure tables (identical in every service schema) ───────
+// Transactional outbox: written in the same transaction as the business change,
+// published by the in-process OutboxRelay (packages/messaging).
+model OutboxEvent {
+  id            String    @id @db.Uuid
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  envelope      Json
+  headers       Json      @default("{}")
+  /// PENDING | PUBLISHING | PUBLISHED (CHECK constraint in migration)
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([status, availableAt])
+  @@index([publishedAt])
+  @@map("outbox_events")
+}
+
+// Idempotent-consumer markers: (consumer, message id) inserted in the handler's transaction.
+model ProcessedMessage {
+  consumer    String
+  messageId   String   @map("message_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumer, messageId])
+  @@index([processedAt])
+  @@map("processed_messages")
+}
