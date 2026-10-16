@@ -1,0 +1,107 @@
+// Payment service — a LOCAL SIMULATOR of a payment provider integration.
+// It never receives card data: payment methods are simulated tokens.
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Status: PENDING | PROCESSING | AUTHORIZED | CAPTURED | FAILED | VOIDED | REFUNDED
+model Payment {
+  id                    String    @id @db.Uuid
+  orderId               String    @unique @map("order_id") @db.Uuid
+  customerId            String    @map("customer_id") @db.Uuid
+  amountCents           Int       @map("amount_cents")
+  currency              String    @db.Char(3)
+  status                String
+  /// Simulated method token such as sim_card_approved (never a card number)
+  methodToken           String    @map("method_token")
+  providerReference     String?   @map("provider_reference")
+  failureReason         String?   @map("failure_reason")
+  authorizationAttempts Int       @default(0) @map("authorization_attempts")
+  capturedCents         Int       @default(0) @map("captured_cents")
+  refundedCents         Int       @default(0) @map("refunded_cents")
+  /// Set when the order is cancelled while authorization is in flight
+  cancelRequested       Boolean   @default(false) @map("cancel_requested")
+  lastAttemptAt         DateTime? @map("last_attempt_at") @db.Timestamptz(3)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  events PaymentEvent[]
+
+  @@index([status, lastAttemptAt])
+  @@index([customerId, createdAt])
+  @@map("payments")
+}
+
+/// Append-only audit log of payment operations. Contains no payment credentials.
+model PaymentEvent {
+  id        BigInt   @id @default(autoincrement())
+  paymentId String   @map("payment_id") @db.Uuid
+  action    String
+  outcome   String
+  detail    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
+  @@map("payment_events")
+}
+
+/// Stored responses for Idempotency-Key requests (scope = caller user ID).
+model IdempotencyRecord {
+  scope          String
+  key            String
+  requestHash    String   @map("request_hash")
+  /// IN_PROGRESS | COMPLETED
+  state          String
+  responseStatus Int?     @map("response_status")
+  responseBody   Json?    @map("response_body")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([scope, key])
+  @@index([createdAt])
+  @@map("idempotency_records")
+}
+
+// ── Messaging infrastructure tables (identical in every service schema) ───────
+// Transactional outbox: written in the same transaction as the business change,
+// published by the in-process OutboxRelay (packages/messaging).
+model OutboxEvent {
+  id            String    @id @db.Uuid
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  envelope      Json
+  headers       Json      @default("{}")
+  /// PENDING | PUBLISHING | PUBLISHED (CHECK constraint in migration)
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([status, availableAt])
+  @@index([publishedAt])
+  @@map("outbox_events")
+}
+
+// Idempotent-consumer markers: (consumer, message id) inserted in the handler's transaction.
+model ProcessedMessage {
+  consumer    String
+  messageId   String   @map("message_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumer, messageId])
+  @@index([processedAt])
+  @@map("processed_messages")
+}
