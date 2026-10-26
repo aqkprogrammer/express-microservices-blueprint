@@ -17,7 +17,7 @@
     "@emb/http-kit": "0.1.0",
     "@emb/contracts": "0.1.0",
     "@emb/logger": "0.1.0",
-    "jose": "^6.2.12",
+    "jose": "^6.2.13",
     "express": "^5.1.0"
   },
   "devDependencies": {
