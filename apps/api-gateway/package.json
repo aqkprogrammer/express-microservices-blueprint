@@ -16,7 +16,7 @@
     "@emb/logger": "^0.1.0",
     "@emb/observability": "^0.1.0",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.1",
+    "express-rate-limit": "^8.7.2",
     "ioredis": "^6.0.0",
     "rate-limit-redis": "^6.0.1",
     "swagger-ui-express": "^5.0.1",
