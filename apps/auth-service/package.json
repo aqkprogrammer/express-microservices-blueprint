@@ -22,7 +22,7 @@
     "@emb/security": "^0.1.0",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
-    "argon2": "^0.45.1",
+    "argon2": "^0.45.2",
     "express": "^5.3.0",
     "jose": "^6.2.12",
     "zod": "^4.6.7"
