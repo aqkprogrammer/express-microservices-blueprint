@@ -15,9 +15,9 @@
   ],
   "dependencies": {
     "@emb/contracts": "0.1.0",
-    "@testcontainers/postgresql": "^12.2.1",
-    "@testcontainers/rabbitmq": "^12.2.1",
-    "@testcontainers/redis": "^12.2.1",
+    "@testcontainers/postgresql": "^12.2.2",
+    "@testcontainers/rabbitmq": "^12.2.2",
+    "@testcontainers/redis": "^12.2.2",
     "jose": "^6.2.12",
     "testcontainers": "^12.2.1"
   }
